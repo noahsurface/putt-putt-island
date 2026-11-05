@@ -1,0 +1,26 @@
+{
+  "name": "putt-putt-island",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A cozy island mini-golf builder: design your island, build courses, decorate your pro shop and play with friends.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "art": "node scripts/generate-art.mjs",
+    "art:force": "node scripts/generate-art.mjs --force"
+  },
+  "dependencies": {
+    "@fontsource/pixelify-sans": "5.3.0",
+    "phaser": "3.90.0"
+  },
+  "devDependencies": {
+    "pngjs": "7.0.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.7",
+    "vitest": "3.2.7"
+  }
+}
