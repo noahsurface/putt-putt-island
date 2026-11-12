@@ -50,9 +50,9 @@ export class JoinScene extends BaseScene {
   }
 
   create() {
-    this.setupLayers(1);
+    this.setupLayers('ui');
     this.cameras.main.setBackgroundColor('#4f9a5a');
-    const bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'terrain_grass', 15).setOrigin(0).setScale(1).setTileScale(3);
+    const bg = this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'terrain_grass', 15).setOrigin(0).setTileScale(0.75);
     this.w(bg);
     this.u(text(this, GAME_WIDTH / 2, 50, 'Round Setup', 52, COLORS.gold, { stroke: '#2a1a10', strokeThickness: 10, fontStyle: 'bold' }).setOrigin(0.5));
     this.u(text(this, GAME_WIDTH / 2, 98, 'Each golfer presses A on their own controller (or Space on the keyboard) to join', 21, '#ffffff', { stroke: '#2a1a10', strokeThickness: 5 }).setOrigin(0.5));
@@ -97,11 +97,11 @@ export class JoinScene extends BaseScene {
       } else {
         const look = Save.data.characters[slot.char];
         const ch = new CharacterSprite(this, CARD_W / 2, 230, look);
-        ch.setScale(5);
+        ch.setScale(7);
         c.add(ch);
         c.add(text(this, CARD_W / 2, 252, look.name, 26, COLORS.ink, { fontStyle: 'bold' }).setOrigin(0.5));
         c.add(text(this, CARD_W / 2, 282, deviceLabel(slot.device), 17, COLORS.inkSoft).setOrigin(0.5));
-        const ball = this.add.image(CARD_W / 2 - 60, 282, 'ball').setScale(3).setTint(look.ballColor);
+        const ball = this.add.image(CARD_W / 2 - 60, 282, 'ball').setScale(0.75).setTint(look.ballColor);
         c.add(ball);
         const pad = slot.device !== 'kb';
         const g1 = glyph(this, 'X', 26, 312, pad);

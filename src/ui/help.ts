@@ -9,7 +9,7 @@ const ROWS: [Btn[], string, string][] = [
   [['A'], 'Interact, place, hold to putt', ''],
   [['B'], 'Back / remove · hold to run', 'Shift also runs'],
   [['X'], 'Rotate item · next hole number', ''],
-  [['Y'], 'Look around the course', 'Right stick or IJKL pans the camera'],
+  [['Y'], 'Look around the course', 'Right stick or IJKL'],
   [['LB', 'RB'], 'Previous / next item', 'Fine aim while putting'],
   [['LT', 'RT'], 'Previous / next category', ''],
   [['START'], 'PuttPad menu / pause', ''],

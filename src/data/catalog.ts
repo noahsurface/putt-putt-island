@@ -101,7 +101,7 @@ const defs: ObjectDef[] = [
   { id: 'window', name: 'Window', texture: 'window', w: 2, h: 1, placement: 'shop-wall', solid: false, offsetY: 10 },
   { id: 'pennant', name: 'Pennant', texture: 'pennant', w: 1, h: 1, placement: 'shop-wall', solid: false, offsetY: 10 },
   { id: 'neon_open', name: 'Neon Sign', texture: 'neon_open', w: 2, h: 1, placement: 'shop-wall', solid: false, offsetY: 10 },
-  { id: 'locker_door', name: 'Locker Room Door', texture: 'locker_door', w: 1, h: 1, placement: 'shop-wall', solid: false, offsetY: 8 },
+  { id: 'locker_door', name: 'Locker Room Door', texture: 'locker_door', w: 1, h: 1, placement: 'shop-wall', solid: false, offsetY: 16 },
   { id: 'sign_locker', name: 'Locker Room Sign', texture: 'sign_locker', w: 2, h: 1, placement: 'shop-wall', solid: false, offsetY: 8 },
 ];
 

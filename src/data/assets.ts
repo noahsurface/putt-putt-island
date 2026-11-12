@@ -30,20 +30,21 @@ export const CHARACTER_LAYERS = {
   pants: ['shorts', 'long', 'skirt'],
 };
 
-const CHAR = { w: 16, h: 32 };
+const CHAR = { w: 128, h: 192 };
 
 export const ASSET_IMAGES: ImageAsset[] = [
-  ...['sand', 'grass', 'dirt', 'stone', 'brick', 'green', 'bunker'].map((t) => img(`terrain_${t}`, `assets/terrain/${t}.png`, { w: 16, h: 16 })),
-  img('water', 'assets/terrain/water.png', { w: 32, h: 32 }),
-  ...['rail_wood', 'rail_brick', 'rail_stone', 'fence_white', 'fence_wood', 'hedge'].map((w) => img(`wall_${w}`, `assets/walls/${w}.png`, { w: 16, h: 24 })),
+  ...['sand', 'grass', 'dirt', 'stone', 'brick', 'green', 'bunker'].map((t) => img(`terrain_${t}`, `assets/terrain/${t}.png`, { w: 64, h: 64 })),
+  img('water', 'assets/terrain/water.png', { w: 128, h: 128 }),
+  ...['rail_wood', 'rail_brick', 'rail_stone', 'fence_white', 'fence_wood', 'hedge'].map((w) => img(`wall_${w}`, `assets/walls/${w}.png`, { w: 64, h: 96 })),
+  ...['rail_wood', 'rail_brick', 'rail_stone'].map((w) => img(`wall_${w}_corner`, `assets/walls/${w}_corner.png`, { w: 64, h: 64 })),
   ...OBJECT_IMAGES.map((o) => img(o, `assets/objects/${o}.png`)),
   ...INTERIOR_IMAGES.map((o) => img(o, `assets/interior/${o}.png`)),
   img('proshop', 'assets/buildings/proshop.png'),
   img('tee', 'assets/course/tee.png'),
   img('cup', 'assets/course/cup.png'),
-  img('flag', 'assets/course/flag.png', { w: 24, h: 32 }),
-  img('bumper', 'assets/course/bumper.png', { w: 16, h: 16 }),
-  img('boost', 'assets/course/boost.png', { w: 16, h: 16 }),
+  img('flag', 'assets/course/flag.png', { w: 96, h: 128 }),
+  img('bumper', 'assets/course/bumper.png', { w: 64, h: 64 }),
+  img('boost', 'assets/course/boost.png', { w: 64, h: 64 }),
   img('spinner_base', 'assets/course/spinner_base.png'),
   img('spinner_blades', 'assets/course/spinner_blades.png'),
   img('ball', 'assets/course/ball.png'),
@@ -60,6 +61,8 @@ export const ASSET_IMAGES: ImageAsset[] = [
   img('char_shadow', 'assets/character/shadow.png'),
   ...CHARACTER_LAYERS.shirt.map((s) => img(`char_shirt_${s}`, `assets/character/shirt_${s}.png`, CHAR)),
   ...CHARACTER_LAYERS.shirt.filter((s) => s !== 'tank').map((s) => img(`char_sleeves_${s}`, `assets/character/sleeves_${s}.png`, CHAR)),
+  img('char_shirtfx_striped', 'assets/character/shirtfx_striped.png', CHAR),
+  img('char_sleevesfx_striped', 'assets/character/sleevesfx_striped.png', CHAR),
   ...CHARACTER_LAYERS.pants.map((s) => img(`char_pants_${s}`, `assets/character/pants_${s}.png`, CHAR)),
   ...CHARACTER_LAYERS.hair.filter((s) => s !== 'none').map((s) => img(`char_hair_${s}`, `assets/character/hair_${s}.png`, CHAR)),
   ...CHARACTER_LAYERS.hat.filter((s) => s !== 'none').map((s) => img(`char_hat_${s}`, `assets/character/hat_${s}.png`, CHAR)),

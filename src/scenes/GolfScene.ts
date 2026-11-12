@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { COLORS, GAME_HEIGHT, GAME_WIDTH, TILE, ZOOM } from '../config';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, COLORS, GAME_HEIGHT, GAME_WIDTH, TILE, ZOOM } from '../config';
+import { Terrain } from '../data/terrain';
 import type { CharacterLook } from '../data/types';
 import { Input, deviceLabel, type DeviceId } from '../systems/Input';
 import { Save } from '../systems/Save';
@@ -9,15 +10,19 @@ import { banner, Menu, panel, PromptBar, text } from '../ui/widgets';
 import { CharacterSprite } from '../world/CharacterSprite';
 import { BallSim, traceAim, type BallEvent } from '../world/golfPhysics';
 import { IslandMap, type PlayableHole } from '../world/IslandMap';
-import { WorldRenderer } from '../world/WorldRenderer';
+import { WorldRenderer, WS } from '../world/WorldRenderer';
 import { BaseScene } from './BaseScene';
 import type { RoundSetup } from './JoinScene';
 
 const MAX_STROKES = 8;
 const CHARGE_RATE = 0.85; // full power sweeps per second
 const MAX_ROLL_TIME = 25;
+/** Walking pace between shots (world units/s) — same as on the island. */
+const WALK_SPEED = 48;
+/** How far beside the ball the golfer stands. */
+const STANCE_DIST = 6.5;
 
-type Phase = 'intro' | 'aim' | 'charge' | 'rolling' | 'wait' | 'card' | 'final' | 'paused';
+type Phase = 'intro' | 'walk' | 'aim' | 'charge' | 'rolling' | 'wait' | 'card' | 'final' | 'paused';
 
 interface Golfer {
   device: DeviceId;
@@ -71,7 +76,13 @@ export class GolfScene extends BaseScene {
   private meterFill!: Phaser.GameObjects.Graphics;
   private overlay: Phaser.GameObjects.Container | null = null;
   private menu: Menu | null = null;
-  private introTween: Phaser.Tweens.Tween | null = null;
+  private introTimer: Phaser.Time.TimerEvent | null = null;
+  /** Camera framing for the current hole (centre in world units + zoom). */
+  private holeView = { x: 0, y: 0, zoom: ZOOM };
+  private walkTween: Phaser.Tweens.Tween | null = null;
+  /** Putter swing: -1..0 backswing while charging, >0 follow-through after the shot. */
+  private swing = 0;
+  private swingTween: Phaser.Tweens.Tween | null = null;
 
   constructor() {
     super('Golf');
@@ -95,8 +106,8 @@ export class GolfScene extends BaseScene {
     this.golfers = this.setup.players.map((p) => {
       const look = Save.data.characters[p.char];
       const ball = new BallSim(0, 0);
-      const shadow = this.w(this.add.image(0, 0, 'ball_shadow'));
-      const ballImg = this.w(this.add.image(0, 0, 'ball').setTint(look.ballColor));
+      const shadow = this.w(this.add.image(0, 0, 'ball_shadow').setScale(WS));
+      const ballImg = this.w(this.add.image(0, 0, 'ball').setScale(WS).setTint(look.ballColor));
       const sprite = this.w(new CharacterSprite(this, 0, 0, look)).setVisible(false);
       return { device: p.device, look, ball, ballImg, shadow, sprite, scores: this.holes.map(() => null), strokes: 0, done: false, teed: false, lastSafe: { x: 0, y: 0 }, aim: 0, hidden: false };
     });
@@ -105,7 +116,7 @@ export class GolfScene extends BaseScene {
     this.camTarget = this.w(this.add.zone(0, 0, 1, 1));
     const cam = this.cameras.main;
     cam.setBounds(-TILE * 6, -TILE * 6, (this.map.w + 12) * TILE, (this.map.h + 12) * TILE);
-    cam.startFollow(this.camTarget, true, 0.1, 0.1);
+    cam.startFollow(this.camTarget, false, 0.08, 0.08);
 
     // HUD
     const hp = this.u(this.add.container(16, 14));
@@ -152,27 +163,58 @@ export class GolfScene extends BaseScene {
       g.lastSafe = { ...tee };
       g.aim = Math.atan2(cup.y - tee.y, cup.x - tee.x);
       g.hidden = false;
-      g.ballImg.setScale(1).setAlpha(1);
-      g.shadow.setScale(1).setAlpha(1);
+      g.ballImg.setScale(WS).setAlpha(1);
+      g.shadow.setScale(WS).setAlpha(1);
+      g.sprite.setVisible(false).setPose('stand');
     }
+    this.frameHole();
     this.syncBalls();
     this.refreshHud();
     this.phase = 'intro';
     this.prompts.set([{ btns: 'A', label: 'Skip' }]);
     banner(this, this.ui, `Hole ${this.hole.index + 1}`, `Par ${this.hole.par}${this.holes.length > 1 ? `  ·  ${i + 1} of ${this.holes.length}` : ''}`, COLORS.gold, 1500);
-    // Fly the camera from the cup back to the tee.
-    this.camTarget.setPosition(cup.x, cup.y);
-    this.cameras.main.centerOn(cup.x, cup.y);
-    this.introTween = this.tweens.add({
-      targets: this.camTarget, x: tee.x, y: tee.y, delay: 700, duration: 1500, ease: 'Sine.InOut',
-      onComplete: () => this.endIntro(),
-    });
+    this.introTimer = this.time.delayedCall(1400, () => this.endIntro());
+  }
+
+  /**
+   * Fit the whole hole on screen, like the reference: the camera holds still
+   * while you play and only zooms out a little if a hole is too big to fit.
+   */
+  private frameHole() {
+    const m = this.map;
+    const tee = this.hole.tee, cup = this.hole.cup;
+    let x0 = Math.min(tee.x, cup.x), x1 = Math.max(tee.x, cup.x), y0 = Math.min(tee.y, cup.y), y1 = Math.max(tee.y, cup.y);
+    // flood-fill the playing surface reachable from the tee (inside the borders)
+    const seen = new Set<number>();
+    const q = [m.idx(tee.x, tee.y)];
+    seen.add(q[0]);
+    for (let qi = 0; qi < q.length && q.length < 900; qi++) {
+      const cx = q[qi] % m.w, cy = Math.floor(q[qi] / m.w);
+      x0 = Math.min(x0, cx); x1 = Math.max(x1, cx); y0 = Math.min(y0, cy); y1 = Math.max(y1, cy);
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = cx + dx, ny = cy + dy;
+        if (!m.inBounds(nx, ny) || m.wall(nx, ny)) continue;
+        const t = m.terrain(nx, ny);
+        if (t !== Terrain.Green && t !== Terrain.Bunker) continue;
+        const k = m.idx(nx, ny);
+        if (!seen.has(k)) { seen.add(k); q.push(k); }
+      }
+    }
+    const margin = 2;
+    const wTiles = x1 - x0 + 1 + margin * 2, hTiles = y1 - y0 + 1 + margin * 2;
+    const fit = Math.min(CANVAS_WIDTH / (wTiles * TILE), (CANVAS_HEIGHT * 0.86) / (hTiles * TILE));
+    const zoom = Math.max(ZOOM * 0.55, Math.min(ZOOM, fit));
+    this.holeView = { x: ((x0 + x1 + 1) / 2) * TILE, y: ((y0 + y1 + 1) / 2) * TILE + 6, zoom };
+    const cam = this.cameras.main;
+    cam.setZoom(zoom);
+    this.camTarget.setPosition(this.holeView.x, this.holeView.y);
+    cam.centerOn(this.holeView.x, this.holeView.y);
   }
 
   private endIntro() {
     if (this.phase !== 'intro') return;
-    this.introTween?.stop();
-    this.introTween = null;
+    this.introTimer?.remove();
+    this.introTimer = null;
     this.beginTurn(this.pickNext());
   }
 
@@ -191,11 +233,11 @@ export class GolfScene extends BaseScene {
   private beginTurn(i: number) {
     this.current = i;
     const g = this.golfers[i];
+    const first = !g.teed;
     g.teed = true;
-    this.phase = 'aim';
     this.power = 0;
+    this.swing = 0;
     this.lookOffset.set(0, 0);
-    this.golfers.forEach((o, k) => o.sprite.setVisible(k === i));
     this.syncBalls();
     this.refreshHud();
     if (this.golfers.length > 1) {
@@ -203,6 +245,42 @@ export class GolfScene extends BaseScene {
       Input.lastDevice = g.device;
       banner(this, this.ui, `${g.look.name}'s turn`, deviceLabel(g.device), '#ffffff', 900);
     }
+    const stance = this.stance(g);
+    const s = g.sprite;
+    if (first || !s.visible) {
+      // First putt on a hole: the golfer appears on the tee, ready to play.
+      s.setVisible(true).setPosition(stance.x, stance.y);
+      this.takeStance();
+      return;
+    }
+    // Otherwise stroll over to the ball at walking pace, like the reference.
+    const dist = Math.hypot(stance.x - s.x, stance.y - s.y);
+    if (dist < 3) { this.takeStance(); return; }
+    this.phase = 'walk';
+    this.prompts.set([{ btns: 'A', label: 'Skip' }]);
+    s.setPose('walk').faceVector(stance.x - s.x, stance.y - s.y);
+    this.walkTween = this.tweens.add({
+      targets: s, x: stance.x, y: stance.y, duration: Math.min(3200, (dist / WALK_SPEED) * 1000),
+      onUpdate: () => s.setDepth(s.y),
+      onComplete: () => this.takeStance(),
+    });
+  }
+
+  /** Where a golfer stands to putt: side-on, beside the ball (right-handed stance). */
+  private stance(g: Golfer) {
+    const ax = Math.cos(g.aim), ay = Math.sin(g.aim);
+    const fx = -ay, fy = ax; // facing: the aim line rotated 90°
+    return { x: g.ball.x - fx * STANCE_DIST - ax * 1.5, y: g.ball.y - fy * STANCE_DIST - ay * 1.5 + 1, fx, fy };
+  }
+
+  private takeStance() {
+    if (this.phase === 'paused') return;
+    this.walkTween?.stop();
+    this.walkTween = null;
+    const g = this.golfers[this.current];
+    const st = this.stance(g);
+    g.sprite.setPosition(st.x, st.y).setPose('putt').faceVector(st.fx, st.fy).setDepth(st.y);
+    this.phase = 'aim';
     this.setAimPrompts();
   }
 
@@ -222,12 +300,16 @@ export class GolfScene extends BaseScene {
     g.lastSafe = { x: g.ball.x, y: g.ball.y };
     g.ball.hit(g.aim, this.power);
     Sfx.putt(this.power);
+    this.swingTween?.stop();
+    this.swingTween = this.tweens.add({ targets: this, swing: 0.6, duration: 90, ease: 'Quad.Out', yoyo: false,
+      onComplete: () => { this.swingTween = this.tweens.add({ targets: this, swing: 0, delay: 350, duration: 300 }); } });
+    // After the follow-through the golfer straightens up and watches the ball.
+    this.time.delayedCall(700, () => { if (this.phase === 'rolling' || this.phase === 'wait') g.sprite.setPose('stand'); });
     this.phase = 'rolling';
     this.rollTime = 0;
     this.guide.clear();
     this.meter.setVisible(false);
     this.prompts.set([{ btns: 'Y', label: 'Look' }]);
-    this.tweens.add({ targets: g.sprite, alpha: 0.85, duration: 120, yoyo: true });
     this.refreshHud();
   }
 
@@ -240,7 +322,7 @@ export class GolfScene extends BaseScene {
       const name = scoreName(g.strokes, this.hole.par);
       if (g.strokes < this.hole.par || g.strokes === 1) Sfx.cheer();
       banner(this, this.ui, name, `${g.look.name} · ${g.strokes} stroke${g.strokes === 1 ? '' : 's'}`, g.strokes <= this.hole.par ? COLORS.gold : '#ffffff', 1300);
-      this.tweens.add({ targets: [g.ballImg, g.shadow], scale: 0.3, alpha: 0, duration: 260 });
+      this.tweens.add({ targets: [g.ballImg, g.shadow], scale: WS * 0.3, alpha: 0, duration: 260 });
       this.wait(1700);
       return;
     }
@@ -332,7 +414,7 @@ export class GolfScene extends BaseScene {
     this.golfers.forEach((g, r) => {
       const y = hy + 80 + r * 52;
       const lead = done && ranking[0] === g && this.golfers.length > 1;
-      c.add(this.add.image(x0 + 52, y, 'ball').setScale(3).setTint(g.look.ballColor));
+      c.add(this.add.image(x0 + 52, y, 'ball').setScale(0.75).setTint(g.look.ballColor));
       c.add(text(this, x0 + 72, y, `${lead ? '🏆 ' : ''}${g.look.name}`, 22, COLORS.ink, { fontStyle: lead ? 'bold' : 'normal' }).setOrigin(0, 0.5));
       g.scores.forEach((s, i) => {
         const x = x0 + 250 + i * colW + colW / 2;
@@ -386,6 +468,7 @@ export class GolfScene extends BaseScene {
 
   // =================================================================== pause
   private pause() {
+    if (this.phase === 'walk') this.takeStance();
     this.prevPhase = this.phase;
     this.phase = 'paused';
     this.meter.setVisible(false);
@@ -430,6 +513,10 @@ export class GolfScene extends BaseScene {
     switch (this.phase) {
       case 'intro':
         if (Input.pressed('A') || Input.pressed('START')) this.endIntro();
+        break;
+      case 'walk':
+        this.updateLook(dt, dev);
+        if (Input.pressed('A', dev)) this.takeStance();
         break;
       case 'aim':
         this.updateLook(dt, dev);
@@ -499,10 +586,14 @@ export class GolfScene extends BaseScene {
     }
     this.syncBalls();
     this.drawAim();
-    if (this.phase !== 'intro') {
-      const b = g.ball;
-      this.camTarget.setPosition(b.x + this.lookOffset.x, b.y + this.lookOffset.y);
-    }
+    // The camera holds the whole hole; it only chases the ball if it leaves the view.
+    const cam = this.cameras.main;
+    const b = g.ball;
+    const halfW = cam.width / cam.zoom / 2 - 24, halfH = cam.height / cam.zoom / 2 - 24;
+    let tx = this.holeView.x, ty = this.holeView.y;
+    if (Math.abs(b.x - tx) > halfW) tx = b.x - Math.sign(b.x - tx) * halfW;
+    if (Math.abs(b.y - ty) > halfH) ty = b.y - Math.sign(b.y - ty) * halfH;
+    this.camTarget.setPosition(tx + this.lookOffset.x, ty + this.lookOffset.y);
   }
 
   private updateAim(dt: number, dev?: DeviceId) {
@@ -534,7 +625,7 @@ export class GolfScene extends BaseScene {
     }
     if (Input.pressed('SELECT', dev)) {
       const cam = this.cameras.main;
-      cam.setZoom(cam.zoom === ZOOM ? 2 : ZOOM);
+      cam.setZoom(cam.zoom === this.holeView.zoom ? this.holeView.zoom * 0.66 : this.holeView.zoom);
     }
   }
 
@@ -548,13 +639,11 @@ export class GolfScene extends BaseScene {
     });
     const g = this.golfers[this.current];
     if (!g) return;
-    const s = g.sprite;
     if (this.phase === 'aim' || this.phase === 'charge') {
-      const back = 9 + (this.phase === 'charge' ? this.power * 2 : 0);
-      s.setPosition(Math.round(g.ball.x - Math.cos(g.aim) * back), Math.round(g.ball.y - Math.sin(g.aim) * back + 2));
-      s.faceVector(Math.cos(g.aim), Math.sin(g.aim));
-      s.setDepth(s.y);
-      s.setVisible(true);
+      // Orbit the ball as the aim turns, leaning back a touch on the backswing.
+      const st = this.stance(g);
+      const lean = this.phase === 'charge' ? this.power * 1.2 : 0;
+      g.sprite.setPosition(st.x - Math.cos(g.aim) * lean, st.y - Math.sin(g.aim) * lean).faceVector(st.fx, st.fy).setDepth(st.y);
     }
   }
 
@@ -562,22 +651,38 @@ export class GolfScene extends BaseScene {
     this.guide.clear();
     this.putter.clear();
     const g = this.golfers[this.current];
-    if (!g || (this.phase !== 'aim' && this.phase !== 'charge')) return;
-    const { x, y } = g.ball;
-    const len = this.phase === 'charge' ? 24 + this.power * 90 : 52;
-    const bounces = Save.data.settings.aimAssist ? 1 : 0;
-    const pts = traceAim(this.map, x, y, g.aim, len, this.simTime, bounces);
-    pts.forEach((p, i) => {
-      const a = 1 - i / (pts.length + 2);
-      this.guide.fillStyle(0xffffff, 0.9 * a).fillRect(Math.round(p.x) - 0.5, Math.round(p.y) - 0.5, 1.5, 1.5);
-    });
-    // Putter: shaft from the golfer's hands to just behind the ball.
-    const pull = this.phase === 'charge' ? 3 + this.power * 7 : 3;
-    const hx = x - Math.cos(g.aim) * pull, hy = y - Math.sin(g.aim) * pull;
+    if (!g || g.hidden) return;
+    const aiming = this.phase === 'aim' || this.phase === 'charge';
+    const swinging = this.phase === 'rolling' && this.swing > 0.01;
+    if (!aiming && !swinging) return;
+    const ax = Math.cos(g.aim), ay = Math.sin(g.aim);
+    if (aiming) {
+      const { x, y } = g.ball;
+      // Optional bounce preview beyond the arrow (aim assist).
+      if (Save.data.settings.aimAssist) {
+        const pts = traceAim(this.map, x, y, g.aim, 34 + this.power * 70, this.simTime, 1);
+        pts.forEach((p, i) => {
+          if (i < 6) return;
+          this.guide.fillStyle(0xffffff, 0.55 * (1 - i / (pts.length + 2))).fillCircle(p.x, p.y, 0.45);
+        });
+      }
+      // Blue aim arrow, like the reference.
+      const L = 20 + this.power * 6;
+      const sx = x + ax * 3.5, sy = y + ay * 3.5, ex = x + ax * L, ey = y + ay * L;
+      this.guide.lineStyle(1.1, 0x2f62d0, 1).lineBetween(sx, sy, ex, ey);
+      const hx = -ay, hy = ax;
+      this.guide.fillStyle(0x2f62d0, 1).fillTriangle(ex + ax * 2.6, ey + ay * 2.6, ex - ax * 1.2 + hx * 2.2, ey - ay * 1.2 + hy * 2.2, ex - ax * 1.2 - hx * 2.2, ey - ay * 1.2 - hy * 2.2);
+    }
+    // Putter: shaft from the golfer's hands to a head just behind the ball.
     const s = g.sprite;
+    const swing = this.phase === 'charge' ? -this.power : this.swing;
+    const headDist = 3 - swing * 9;
+    const hx = g.ball.x - ax * headDist, hy = g.ball.y - ay * headDist;
+    const st = this.stance(g);
+    const handX = s.x + st.fx * 3.2, handY = s.y + st.fy * 3.2 - 8;
     this.putter.setDepth(Math.max(s.depth, g.ball.y) + 0.5);
-    this.putter.lineStyle(1, 0xb8bcc4, 1).lineBetween(s.x + 2, s.y - 9, hx, hy);
-    this.putter.fillStyle(0x3a3a44, 1).fillRect(hx - 1.5, hy - 1, 3, 2);
+    this.putter.lineStyle(0.9, 0x6b6f86, 1).lineBetween(handX, handY, hx, hy);
+    this.putter.fillStyle(0x3a3a48, 1).fillRoundedRect(hx - 1.8 - ax * 0.4, hy - 1.1, 3.6, 2.2, 0.6);
   }
 
   private drawMeter() {
@@ -602,7 +707,7 @@ export class GolfScene extends BaseScene {
     this.golfers.forEach((o, i) => {
       const y = 30 + i * 34;
       const t = this.totals(o);
-      this.board.add(this.add.image(-226, y, 'ball').setScale(2.5).setTint(o.look.ballColor));
+      this.board.add(this.add.image(-226, y, 'ball').setScale(0.625).setTint(o.look.ballColor));
       this.board.add(text(this, -206, y, o.look.name, 19, i === this.current ? COLORS.gold : '#ffffff', { fontStyle: i === this.current ? 'bold' : 'normal' }).setOrigin(0, 0.5));
       const status = o.done ? '✓' : `${o.strokes}`;
       this.board.add(text(this, -24, y, `${relPar(t.rel)}  ${status}`, 18, '#c8c8d8').setOrigin(1, 0.5));
