@@ -8,6 +8,14 @@ No code changes are needed.
 > `npm run art` only creates files that are missing, so it never touches your
 > art. `npm run art:force` regenerates everything and **will** overwrite it.
 
+## Current style
+
+Bright, flat cartoon pixel art: fine speckled textures, lime putting greens with
+diagonal stripes and cut corners, thick brown cobble borders, and **no black
+outlines**. Every edge is a darker shade of the colour it borders (see
+`OUTLINE` in `scripts/art/pix.mjs`; set `soft: false` to bring back dark
+outlines). Trees and bushes cast large dark oval shadows.
+
 ## Ground rules
 
 * **Tile size is 16×16 px.** The game draws everything at 3× zoom with
@@ -38,8 +46,8 @@ tile across the whole sea.
 
 ## Walls: `assets/walls/`
 
-`rail_wood.png`, `rail_brick.png`, `rail_stone.png`, `fence_white.png`,
-`hedge.png`
+`rail_wood.png` (the brown cobble border), `rail_brick.png`, `rail_stone.png`,
+`fence_white.png`, `fence_wood.png`, `hedge.png`
 
 * **256×24** sheet: 16 frames of 16×24, using the same N/E/S/W mask as terrain
   (a bit is set when that neighbour also has a wall).
@@ -55,8 +63,10 @@ size a lot, update its `w`/`h` and `rects` there too.
 
 | File | Size | Footprint |
 | --- | --- | --- |
-| tree_oak / tree_pine / tree_palm | 32×48 | 1×1 |
-| bush, bush_berry, flowers_*, tall_grass, rock, stump, crate, shell, starfish | 16×16 | 1×1 |
+| tree_oak / tree_apple / tree_pine / tree_palm | 32×48 | 1×1 |
+| bush, bush_berry, bush_flowers_white/red/orange, flowers_*, tall_grass, rock, stump, crate, shell, starfish | 16×16 | 1×1 |
+| flower_bed, garden_plot | 32×32 | 2×2 (flat, walkable) |
+| hole_sign | 16×24 | 1×1 |
 | boulder | 32×24 | 2×1 |
 | bench, picnic_table | 32×24 | 2×1 |
 | lamp, tiki_torch, ball_statue | 16×32 | 1×1 |
@@ -68,8 +78,9 @@ size a lot, update its `w`/`h` and `rects` there too.
 Pro shop interior (`assets/interior/`): `floor_*.png` 16×16 tiles,
 `wall_*.png` 16×32 wall strips (baseboard at the bottom), furniture such as
 `counter` (48×32), `shelf_balls` / `club_rack` / `trophy_case` (32×32),
-`rug` (48×32) and `putting_mat` (48×16), and wall decor (`poster`, `clock`,
-`pennant` 16×16; `window`, `neon_open` 32×16).
+`rug` (48×32) and `putting_mat` (the indoor green, 64×48, 4×3 tiles), and wall
+decor (`poster`, `clock`, `pennant` 16×16; `window`, `neon_open`,
+`sign_locker` 32×16; `locker_door` 16×28).
 
 ## Course pieces: `assets/course/`
 
@@ -126,6 +137,7 @@ appear in the wardrobe.
 * `panel.png`, `panel_dark.png`: 48×48 nine-slice frames with 16 px corners
   (drawn at 2×)
 * `cursor.png`: two 16×16 frames for the editor cursor
+* `lockers.png`: 120×130 wardrobe backdrop (lockers over a tiled floor), drawn at 4×
 * `icons.png`: 32×32 PuttPad app icons. Order: designer, play, customize,
   shop, save, controls, home, course
 

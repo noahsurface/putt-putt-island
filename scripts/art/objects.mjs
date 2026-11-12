@@ -1,7 +1,7 @@
 // Decorations, mini-golf course pieces, buildings, pro-shop interior and UI art.
 import { Pix, rng, save, sheet, shade, text, textWidth } from './pix.mjs';
 
-const SHADOW = '#1a2a1040';
+const SHADOW = '#14300c70';
 
 /** Ellipse shaded as if lit from the top-left. cols = [highlight, mid, shadow]. */
 function blob(p, cx, cy, rx, ry, cols, seed = 1) {
@@ -17,59 +17,82 @@ function groundShadow(p, cx, cy, rx, ry) {
 }
 
 // ---------------------------------------------------------------- nature
-function treeOak() {
-  const p = new Pix(32, 48);
-  groundShadow(p, 16, 44, 11, 3);
-  const trunk = new Pix(32, 48);
-  trunk.rect(13, 30, 6, 14, '#8a5a32');
-  trunk.rect(17, 30, 2, 14, '#6b4426');
-  trunk.rect(13, 30, 1, 14, '#a06a3c');
-  trunk.rect(11, 42, 3, 2, '#8a5a32');
-  trunk.rect(18, 42, 3, 2, '#6b4426');
-  trunk.outline('#3d2614');
-  p.blit(trunk, 0, 0);
-  const c = new Pix(32, 48);
-  const cols = ['#7cc44c', '#56a238', '#3d7f2b'];
-  [[16, 26, 10, 7], [9, 21, 7, 7], [23, 21, 7, 7], [16, 15, 11, 10], [10, 11, 6, 5], [22, 11, 6, 5]].forEach(([x, y, rx, ry], i) => blob(c, x, y, rx, ry, cols, 10 + i));
-  // leaf clumps
-  const r = rng(77);
-  for (let i = 0; i < 16; i++) {
-    const x = 6 + Math.floor(r() * 20), y = 5 + Math.floor(r() * 24);
-    if (c.alpha(x, y) && c.alpha(x + 2, y + 1)) {
-      c.set(x, y, '#93d662');
-      c.set(x + 1, y, '#93d662');
-      c.set(x + 1, y + 1, '#3d7f2b');
-      c.set(x + 2, y + 1, '#3d7f2b');
-    }
+const LEAF = ['#35914f', '#257a40', '#1a6332'];
+
+function leafSpeckle(c, seed, n = 60) {
+  const r = rng(seed);
+  for (let i = 0; i < n; i++) {
+    const x = Math.floor(r() * c.w), y = Math.floor(r() * c.h);
+    if (c.alpha(x, y) > 200) c.set(x, y, r() < 0.5 ? '#1d6a36' : '#3a9a56');
   }
-  c.outline('#25491a');
+}
+
+function trunk(p, x, y, w, h) {
+  const t = new Pix(p.w, p.h);
+  t.rect(x, y, w, h, '#9a6a45');
+  t.rect(x + Math.ceil(w / 2), y, Math.floor(w / 2), h, '#80553a');
+  t.rect(x + 1, y + 2, 1, Math.max(1, h - 5), '#b5845a');
+  t.rect(x - 2, y + h - 2, 2, 2, '#9a6a45');
+  t.rect(x + w, y + h - 2, 2, 2, '#80553a');
+  t.outline();
+  p.blit(t, 0, 0);
+}
+
+function apple(p, x, y) {
+  p.circle(x, y, 1.7, '#e2302c');
+  p.set(x - 1, y - 1, '#ff8a7a');
+  p.set(x, y - 2, '#5a3a1c');
+}
+
+/** Round, clumpy cartoon tree (optionally with apples). */
+function roundTree(apples) {
+  const p = new Pix(32, 48);
+  groundShadow(p, 16, 43, 13, 4.5);
+  trunk(p, 13, 28, 6, 15);
+  const c = new Pix(32, 48);
+  const clumps = [[16, 16, 9, 9], [16, 7, 6, 5], [9, 11, 5, 5], [23, 11, 5, 5], [6, 18, 5, 5], [26, 18, 5, 5], [9, 25, 6, 4.5], [23, 25, 6, 4.5], [16, 26, 6, 4.5]];
+  clumps.forEach(([x, y, rx, ry], i) => blob(c, x, y, rx, ry, LEAF, 20 + i));
+  // scalloped highlights on the upper-left of each clump
+  clumps.forEach(([x, y, rx]) => {
+    for (let a = -2.7; a < -1.0; a += 0.22) c.set(Math.round(x + Math.cos(a) * (rx - 1.6)), Math.round(y + Math.sin(a) * (rx - 1.6)), '#46a862');
+  });
+  leafSpeckle(c, apples ? 91 : 92, 70);
+  c.outline();
   p.blit(c, 0, 0);
+  if (apples) [[16, 6], [9, 15], [23, 15], [12, 24], [21, 23]].forEach(([x, y]) => apple(p, x, y));
   return p;
+}
+
+function treeOak() {
+  return roundTree(false);
+}
+
+function treeApple() {
+  return roundTree(true);
 }
 
 function treePine() {
   const p = new Pix(32, 48);
-  groundShadow(p, 16, 44, 9, 3);
-  const t = new Pix(32, 48);
-  t.rect(14, 36, 4, 8, '#7a4e2c');
-  t.rect(16, 36, 2, 8, '#5e3b20');
-  t.outline('#3d2614');
-  p.blit(t, 0, 0);
+  groundShadow(p, 16, 43, 12, 4.5);
+  trunk(p, 14, 35, 4, 9);
   const c = new Pix(32, 48);
-  const tiers = [[4, 14, 6], [11, 24, 9], [19, 34, 12], [26, 40, 13]];
+  const tiers = [[2, 12, 6], [6, 19, 9], [12, 28, 12], [18, 37, 14]];
   tiers.forEach(([top, bottom, half], ti) => {
     for (let y = top; y <= bottom; y++) {
       const w = Math.round(((y - top) / (bottom - top)) * half) + 1;
       for (let x = 16 - w; x < 16 + w; x++) {
         const rel = (x - 16) / w;
-        let col = rel < -0.3 ? '#5a9e55' : rel > 0.4 ? '#2c5f3a' : '#3f7f48';
-        if (y === bottom && (x & 1)) col = '#2c5f3a';
-        c.set(x, y, col);
+        let col = rel < -0.35 ? '#2f8a50' : rel > 0.45 ? '#1a5e34' : '#237443';
+        // scalloped hem on each tier
+        if (y === bottom && (x + ti) % 3 === 0) col = null;
+        if (col) c.set(x, y, col);
       }
     }
-    if (ti === 0) c.set(16, top - 1, '#5a9e55');
+    // a lighter band under each tier's hem of the tier above
+    for (let x = 16 - half + 2; x < 16 + half - 2; x += 2) if (c.alpha(x, top + 2)) c.set(x, top + 2, '#2f8a50');
   });
-  c.outline('#1b3b24');
+  leafSpeckle(c, 77, 50);
+  c.outline();
   p.blit(c, 0, 0);
   return p;
 }
@@ -106,34 +129,97 @@ function treePalm() {
   return p;
 }
 
-function bush(berries) {
+const FLOWER = { white: ['#ffffff', '#e8e8e8'], red: ['#ee3a3a', '#c42a2a'], orange: ['#ff922e', '#e07418'], yellow: ['#ffd23a', '#e0b020'], pink: ['#ff9ad0', '#e06aa8'], blue: ['#6aa8ff', '#3f7fd0'] };
+
+function flower(p, x, y, color) {
+  const [a, b] = FLOWER[color];
+  p.set(x, y - 1, a); p.set(x - 1, y, a); p.set(x + 1, y, a); p.set(x, y + 1, b);
+  p.set(x, y, '#ffd23a');
+}
+
+/** Dark round bush. `extra`: 'berry' or a flower colour name. */
+function bush(extra) {
   const p = new Pix(16, 16);
-  groundShadow(p, 8, 14, 7, 2);
+  groundShadow(p, 8, 13, 7.5, 2.8);
   const c = new Pix(16, 16);
-  const cols = ['#78c24a', '#509b36', '#3a7a28'];
-  blob(c, 5, 10, 4, 4, cols, 3);
-  blob(c, 11, 10, 4, 4, cols, 4);
-  blob(c, 8, 7, 5, 4.5, cols, 5);
-  if (berries) [[5, 9], [9, 6], [11, 11], [7, 12], [12, 8]].forEach(([x, y]) => { c.set(x, y, '#e04848'); c.set(x, y - 1, '#ff8a8a'); });
-  c.outline('#25491a');
+  blob(c, 8, 9.5, 7, 5, LEAF, 3);
+  blob(c, 4.5, 7.5, 3.2, 3, LEAF, 4);
+  blob(c, 8, 5.5, 3.6, 3.2, LEAF, 5);
+  blob(c, 11.5, 7.5, 3.2, 3, LEAF, 6);
+  for (const [x, y] of [[3, 6], [7, 4], [11, 6], [5, 9], [10, 9]]) c.set(x, y, '#46a862');
+  leafSpeckle(c, 33, 14);
+  c.outline();
   p.blit(c, 0, 0);
+  if (extra === 'berry') [[5, 8], [9, 6], [11, 10], [7, 11], [12, 7]].forEach(([x, y]) => { p.set(x, y, '#e03030'); p.set(x, y - 1, '#ff8a8a'); });
+  else if (extra) [[5, 7], [10, 6], [8, 10]].forEach(([x, y]) => flower(p, x, y, extra));
   return p;
 }
 
 function flowers(petal, petalDark) {
   const p = new Pix(16, 16);
   const r = rng(petal.length * 9 + petal.charCodeAt(1));
-  // leaves
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < 8; i++) {
     const x = 2 + Math.floor(r() * 12), y = 8 + Math.floor(r() * 6);
-    p.set(x, y, '#3f8a2e');
-    p.set(x, y - 1, '#5aa83c');
+    p.set(x, y, '#2f7d38');
+    p.set(x, y - 1, '#3f9a48');
   }
   [[4, 6], [10, 4], [8, 10], [12, 11], [3, 12]].forEach(([x, y]) => {
+    p.set(x, y + 2, '#2f7d38');
     p.set(x, y - 1, petal); p.set(x - 1, y, petal); p.set(x + 1, y, petal); p.set(x, y + 1, petalDark);
-    p.set(x, y, '#ffe066');
-    p.set(x, y + 2, '#3f8a2e');
+    p.set(x, y, '#ffd23a');
   });
+  return p;
+}
+
+function flowerBed() {
+  // 2x2 tiles: tilled soil with rows of flowers.
+  const p = new Pix(32, 32);
+  const s = new Pix(32, 32);
+  const r = rng(808);
+  for (let y = 1; y < 31; y++) for (let x = 1; x < 31; x++) {
+    const furrow = (y + 1) % 7 === 0;
+    const v = r();
+    s.set(x, y, furrow ? '#a86a38' : v < 0.15 ? '#b8784a' : v < 0.25 ? '#dc9a5e' : '#c98552');
+  }
+  s.outline();
+  p.blit(s, 0, 0);
+  const rows = ['white', 'red', 'yellow', 'orange'];
+  rows.forEach((col, ri) => {
+    for (let i = 0; i < 7; i++) {
+      const x = 3 + i * 4 + (ri % 2), y = 4 + ri * 7;
+      p.set(x, y + 2, '#2f7d38');
+      p.set(x - 1, y + 2, '#3f9a48');
+      flower(p, x, y, col);
+    }
+  });
+  return p;
+}
+
+function gardenPlot() {
+  // 2x2 tiles of tilled soil ridges.
+  const p = new Pix(32, 32);
+  const r = rng(909);
+  for (let y = 1; y < 31; y++) for (let x = 1; x < 31; x++) {
+    const ph = (y + Math.round(Math.sin(x * 0.9) * 0.7)) % 4;
+    const v = r();
+    const c = ph === 0 ? '#e0a46a' : ph === 3 ? '#a96e3e' : v < 0.15 ? '#bc7d48' : '#c98d55';
+    p.set(x, y, c);
+  }
+  p.outline();
+  return p;
+}
+
+function holeSign() {
+  const p = new Pix(16, 24);
+  groundShadow(p, 8, 21.5, 4, 1.8);
+  const c = new Pix(16, 24);
+  c.rect(7, 10, 2, 11, '#6e4a30');
+  c.rect(7, 10, 1, 11, '#8a5f3e');
+  c.rect(0, 2, 16, 9, '#4e3a2a');
+  c.rect(1, 3, 14, 7, '#5e4632');
+  c.outline();
+  p.blit(c, 0, 0);
+  text(p, 'HOLE', 1, 4, '#e8d6a8');
   return p;
 }
 
@@ -392,28 +478,23 @@ function starterBoard() {
 
 // ---------------------------------------------------------------- course
 function teeMat() {
-  // A rubber tee-off mat with a single tee peg in the middle.
+  // Dark green tee square with three dots (like a little starting mat).
   const p = new Pix(16, 16);
   const c = new Pix(16, 16);
-  c.rect(1, 4, 14, 9, '#2c6e3a');
-  c.rect(2, 5, 12, 7, '#37874a');
-  for (let x = 2; x < 14; x += 2) c.rect(x, 5, 1, 7, '#3f9353');
-  c.rect(1, 4, 14, 1, '#4fa862');
-  c.outline('#173f22');
+  c.rect(2, 2, 12, 12, '#178a4a');
+  c.rect(2, 2, 12, 1, '#22a05a');
+  c.rect(2, 2, 1, 12, '#1d9653');
+  c.clear(2, 2); c.clear(13, 2); c.clear(2, 13); c.clear(13, 13);
+  c.outline();
   p.blit(c, 0, 0);
-  p.rect(7, 8, 2, 1, '#ffffff');
-  p.rect(7, 9, 2, 1, '#d8d8d8');
-  p.set(8, 10, '#8a8a8a');
+  [4, 7, 10].forEach((y) => p.rect(7, y, 2, 2, '#0b2416'));
   return p;
 }
 
 function cup() {
   const p = new Pix(16, 16);
-  p.ellipse(8, 8.5, 4.2, 3.4, '#e9eef2');
-  p.ellipse(8, 8.5, 3.4, 2.7, '#141414');
-  p.ellipse(8, 7.6, 3, 1.6, '#060606');
-  p.set(5, 9, '#3a3a3a');
-  p.set(11, 9, '#3a3a3a');
+  p.ellipse(8, 8.5, 3, 2.6, '#2b2b2b');
+  p.ellipse(8, 8.5, 2.3, 1.9, '#0d0d0d');
   return p;
 }
 
@@ -528,65 +609,54 @@ function ballShadow() {
 
 // ---------------------------------------------------------------- buildings
 function proShopBuilding() {
+  // White clapboard building with a teal shingle roof and a green sign.
   const p = new Pix(80, 80);
   groundShadow(p, 40, 77, 39, 3);
   const b = new Pix(80, 80);
   // walls
-  b.rect(4, 40, 72, 36, '#f3e6c4');
-  for (let y = 43; y < 74; y += 4) b.rect(4, y, 72, 1, '#dccb9f');
-  b.rect(4, 40, 3, 36, '#8a5a32');
-  b.rect(73, 40, 3, 36, '#8a5a32');
-  b.rect(4, 72, 72, 4, '#9a9385');
-  b.rect(4, 72, 72, 1, '#b8b2a5');
+  b.rect(4, 42, 72, 34, '#f6f6f2');
+  for (let y = 45; y < 74; y += 4) b.rect(4, y, 72, 1, '#dedfd8');
+  b.rect(4, 42, 2, 34, '#e2e3dc');
+  b.rect(74, 42, 2, 34, '#d8d9d2');
+  b.rect(4, 73, 72, 3, '#cfd0c8');
   // windows
-  [[10, 52], [56, 52]].forEach(([x, y]) => {
-    b.rect(x - 3, y - 1, 3, 14, '#3a8f47');
-    b.rect(x + 14, y - 1, 3, 14, '#3a8f47');
-    b.rect(x, y, 14, 12, '#ffffff');
-    b.rect(x + 1, y + 1, 12, 10, '#8fd0f0');
+  [[11, 52], [55, 52]].forEach(([x, y]) => {
+    b.rect(x, y, 14, 12, '#e2e3dc');
+    b.rect(x + 1, y + 1, 12, 10, '#8fd6f2');
     b.rect(x + 1, y + 1, 5, 4, '#c8ecfb');
-    b.rect(x + 7, y + 1, 1, 10, '#ffffff');
-    b.rect(x + 1, y + 6, 12, 1, '#ffffff');
-    b.rect(x - 1, y + 12, 16, 2, '#c9b98f');
+    b.rect(x + 7, y + 1, 1, 10, '#e2e3dc');
+    b.rect(x + 1, y + 6, 12, 1, '#e2e3dc');
   });
   // door
-  b.rect(33, 52, 14, 24, '#7c4b26');
-  b.rect(34, 53, 12, 23, '#9a6337');
-  b.rect(36, 55, 8, 7, '#8fd0f0');
-  b.rect(36, 55, 3, 3, '#c8ecfb');
-  b.rect(43, 66, 2, 2, '#ffd34a');
-  b.rect(31, 50, 18, 2, '#8a5a32');
-  // roof
-  for (let y = 6; y < 42; y++) {
-    const t = (y - 6) / 36;
-    const half = Math.round(22 + t * 18);
+  b.rect(33, 52, 14, 24, '#5e3b22');
+  b.rect(34, 53, 12, 23, '#176a4a');
+  b.rect(35, 54, 10, 1, '#20845c');
+  b.rect(43, 64, 2, 2, '#ffd34a');
+  // roof: wide, shallow, teal shingles
+  for (let y = 10; y < 44; y++) {
+    const t = (y - 10) / 34;
+    const half = Math.round(30 + t * 10);
     for (let x = 40 - half; x < 40 + half; x++) {
-      const row = Math.floor((y - 6) / 4);
-      const off = row % 2 ? 2 : 0;
-      let c = '#d0583e';
-      if ((y - 6) % 4 === 3) c = '#a8402c';
-      else if ((x + off) % 5 === 0) c = '#b8472f';
-      else if ((y - 6) % 4 === 0) c = '#e2735a';
+      const row = Math.floor((y - 10) / 4);
+      const off = row % 2 ? 3 : 0;
+      let c = '#1f7466';
+      if ((y - 10) % 4 === 3) c = '#165a50';
+      else if ((x + off) % 6 === 0) c = '#185f54';
+      else if ((y - 10) % 4 === 0) c = '#2a8a7a';
       b.set(x, y, c);
     }
   }
-  b.rect(18, 4, 44, 3, '#a8402c');
-  b.rect(18, 4, 44, 1, '#e2735a');
-  // chimney
-  b.rect(58, 0, 7, 10, '#b8b2a5');
-  b.rect(57, 0, 9, 2, '#857e72');
-  b.outline('#3d2614');
+  b.rect(10, 8, 60, 3, '#165a50');
+  b.rect(10, 8, 60, 1, '#2f9686');
+  b.outline();
   p.blit(b, 0, 0);
   // sign
   const s = new Pix(80, 80);
-  s.rect(17, 31, 46, 11, '#8a5a32');
-  s.rect(18, 32, 44, 9, '#2f7d3c');
-  s.outline('#3d2614');
+  s.rect(19, 38, 42, 11, '#14653c');
+  s.rect(20, 39, 40, 9, '#1a7a46');
+  s.outline();
   p.blit(s, 0, 0);
-  text(p, 'PRO SHOP', 40 - Math.floor(textWidth('PRO SHOP') / 2), 34, '#fff3c4');
-  // flag on roof
-  p.line(26, 0, 26, 8, '#e8e8e8');
-  p.rect(27, 0, 5, 3, '#ffd34a');
+  text(p, 'PRO SHOP', 40 - Math.floor(textWidth('PRO SHOP') / 2), 41, '#ffffff');
   return p;
 }
 
@@ -596,16 +666,22 @@ function floorTile(kind) {
   for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
     let c;
     if (kind === 'wood') {
-      const plank = Math.floor(y / 4);
-      const seam = ((x + plank * 5) % 16) === 0;
-      c = y % 4 === 3 || seam ? '#8a5a32' : plank % 2 ? '#c08a55' : '#b57f4a';
-      if (y % 4 === 0 && !seam) c = '#cf9a64';
+      // short light planks laid in a staggered (brick) pattern
+      const row = Math.floor(y / 4);
+      const off = row % 2 ? 4 : 0;
+      const lx = (x + off) % 8;
+      const id = Math.floor((x + off) / 8) + row * 3;
+      if (y % 4 === 3) c = '#c08550';
+      else if (lx === 7) c = '#c8905a';
+      else if (y % 4 === 0) c = '#ebb87c';
+      else c = id % 3 === 0 ? '#d99f60' : id % 3 === 1 ? '#e2ab6c' : '#deA566';
+      if (lx === 3 && y % 4 === 1 && id % 2) c = '#d39858';
     } else if (kind === 'checker') {
-      c = (Math.floor(x / 8) + Math.floor(y / 8)) % 2 ? '#2f7d3c' : '#f3e6c4';
+      c = (Math.floor(x / 8) + Math.floor(y / 8)) % 2 ? '#1f7a48' : '#eef4e0';
     } else if (kind === 'carpet') {
-      c = (x * 7 + y * 13) % 11 === 0 ? '#479a63' : '#3f8f5a';
+      c = (x * 7 + y * 13) % 11 === 0 ? '#3e8a68' : '#357a5c';
     } else {
-      c = x % 8 === 7 || y % 8 === 7 ? '#a9c4d4' : (Math.floor(x / 8) + Math.floor(y / 8)) % 2 ? '#e8f2f7' : '#d4e6ef';
+      c = x % 8 === 7 || y % 8 === 7 ? '#b8b8b4' : ((x * 5 + y * 3) % 7 === 0 ? '#cacac6' : '#d8d8d4');
     }
     p.set(x, y, c);
   }
@@ -613,36 +689,45 @@ function floorTile(kind) {
 }
 
 function wallTile(kind) {
+  // 16x32 wall strip: wallpaper above a dark wood wainscot band.
   const p = new Pix(16, 32);
   for (let y = 0; y < 32; y++) for (let x = 0; x < 16; x++) {
     let c;
-    if (kind === 'cream') c = y > 18 ? (y === 19 ? '#8a5a32' : x % 4 === 0 ? '#9a6337' : '#b07a42') : '#f3e6c4';
-    else if (kind === 'stripe') c = y > 18 ? (y === 19 ? '#f3e6c4' : '#2f7d3c') : x % 8 < 4 ? '#7cc48a' : '#9fd6a8';
-    else if (kind === 'panel') c = x % 8 === 0 ? '#6b4426' : y % 16 === 0 ? '#7c4b26' : '#9a6337';
-    else c = y > 18 ? (y === 19 ? '#e0b44a' : '#1e2f4f') : (x + y) % 12 === 0 ? '#3a5280' : '#2c406a';
-    if (y >= 29) c = y === 29 ? '#5e3b20' : '#4a2c16';
+    if (kind === 'cream') c = '#e8f3d8';
+    else if (kind === 'stripe') c = x % 8 < 4 ? '#cfe8c0' : '#e2f2d6';
+    else if (kind === 'panel') c = x % 8 === 0 ? '#8a5634' : y % 12 === 0 ? '#8a5634' : '#a5683f';
+    else c = (x + y) % 12 === 0 ? '#2f4a78' : '#26406a';
+    if (y >= 24 && y < 30) c = y === 24 ? '#8a5634' : '#6b3f22';
+    if (y >= 30) c = '#4a2a16';
     p.set(x, y, c);
   }
   return p;
 }
 
 function counter() {
+  // Dark wood shelving counter with a ball basket and clubs.
   const p = new Pix(48, 32);
   groundShadow(p, 24, 30, 23, 2);
   const c = new Pix(48, 32);
-  c.rect(1, 12, 46, 18, '#9a6337');
-  for (let x = 4; x < 46; x += 8) c.rect(x, 18, 1, 11, '#7c4b26');
-  c.rect(1, 8, 46, 6, '#e0a96a');
-  c.rect(1, 8, 46, 1, '#f0c48a');
-  c.rect(1, 13, 46, 1, '#7c4b26');
-  // register
-  c.rect(32, 1, 12, 8, '#5a5a66');
-  c.rect(33, 2, 10, 3, '#8fd0a0');
-  c.rect(33, 6, 10, 2, '#3a3a44');
-  c.outline('#3d2614');
+  c.rect(1, 10, 46, 19, '#5e3820');
+  c.rect(1, 8, 46, 4, '#7a4a2c');
+  c.rect(1, 8, 46, 1, '#94603c');
+  for (let x = 2; x < 46; x += 6) {
+    c.rect(x, 14, 5, 6, '#4a2a16');
+    c.rect(x, 22, 5, 5, '#4a2a16');
+    c.rect(x + 1, 24, 3, 1, '#6b4228');
+  }
+  c.outline();
   p.blit(c, 0, 0);
-  // display balls
-  [[8, 10], [12, 10], [16, 10]].forEach(([x, y]) => { p.circle(x, y, 1.6, '#ffffff'); p.set(x + 1, y + 1, '#c4ccd6'); });
+  // basket of colourful balls
+  p.ellipse(14, 7, 4, 2.5, '#c8a06a');
+  [[12, 6, '#ff5a5a'], [14, 5, '#5ab0ff'], [16, 6, '#ffd23a'], [13, 7, '#7ad06a'], [15, 7, '#ffffff']].forEach(([x, y, col]) => p.set(x, y, col));
+  // clubs
+  [[38, '#e0483e'], [40, '#3fa0d8'], [42, '#6fbf5a'], [44, '#ffd34a']].forEach(([x, col]) => {
+    p.line(x, 1, x, 8, '#d8dce4');
+    p.rect(x - 1, 0, 2, 2, '#4a4a55');
+    p.rect(x, 6, 1, 2, col);
+  });
   return p;
 }
 
@@ -739,14 +824,18 @@ function pottedPlant() {
   return p;
 }
 
-function rug() {
-  const p = new Pix(48, 32);
-  p.ellipse(24, 16, 22, 13, '#b8392f');
-  p.ellipse(24, 16, 19, 10.5, '#e0b44a');
-  p.ellipse(24, 16, 17, 9, '#c8483c');
-  p.ellipse(24, 16, 8, 4.5, '#2f7d3c');
-  p.ellipse(24, 16, 6, 3, '#e0b44a');
+function braidedOval(w, h, cols) {
+  const p = new Pix(w, h);
+  const n = cols.length;
+  for (let i = 0; i < 6; i++) {
+    p.ellipse(w / 2, h / 2, w / 2 - 1 - i * (w / 14), h / 2 - 1 - i * (h / 14), cols[i % n]);
+  }
+  p.outline();
   return p;
+}
+
+function rug() {
+  return braidedOval(48, 32, ['#2f5e4a', '#3a6e58', '#28524a']);
 }
 
 function armchair() {
@@ -798,12 +887,24 @@ function mirror() {
 }
 
 function puttingMat() {
-  const p = new Pix(48, 16);
-  p.rect(1, 3, 46, 10, '#3fa74c');
-  p.rect(1, 3, 46, 1, '#5ccc69');
-  p.rect(1, 12, 46, 1, '#2f7d3c');
-  p.ellipse(40, 8, 2.5, 2, '#141414');
-  p.rect(6, 7, 2, 2, '#ffffff');
+  // A 4x3-tile indoor practice green with a cobble border, tee and cup.
+  const p = new Pix(64, 48);
+  const c = new Pix(64, 48);
+  for (let y = 1; y < 47; y++) for (let x = 1; x < 63; x++) {
+    const border = x < 6 || x > 56 || y < 6 || y > 41;
+    if (border) {
+      const ox = (Math.floor(y / 4) % 2) * 2;
+      const lx = (x + ox) % 4, ly = y % 4;
+      c.set(x, y, lx === 3 || ly === 3 ? '#8a5232' : lx === 0 && ly === 0 ? '#c98b5c' : '#a8693e');
+    } else {
+      c.set(x, y, Math.floor((x + y) / 4) % 2 ? '#8ccb3f' : '#7fbd36');
+    }
+  }
+  c.outline();
+  p.blit(c, 0, 0);
+  p.rect(43, 18, 10, 12, '#178a4a');
+  [20, 23, 26].forEach((y) => p.rect(47, y, 2, 2, '#0b2416'));
+  p.ellipse(13, 24, 2.4, 2, '#0d0d0d');
   return p;
 }
 
@@ -869,10 +970,63 @@ function neonOpen() {
 }
 
 function doorMat() {
+  return braidedOval(32, 16, ['#8a3a3e', '#a04a4e', '#7a3034']);
+}
+
+function lockerDoor() {
+  // Green door that sits on the back wall (decorative).
+  const p = new Pix(16, 28);
+  const c = new Pix(16, 28);
+  c.rect(1, 0, 14, 28, '#5e3b22');
+  c.rect(3, 2, 10, 26, '#176a4a');
+  c.rect(3, 2, 10, 1, '#20845c');
+  c.rect(10, 14, 2, 2, '#ffd34a');
+  c.outline();
+  p.blit(c, 0, 0);
+  return p;
+}
+
+function lockerSign() {
   const p = new Pix(32, 16);
-  p.rect(2, 3, 28, 10, '#8a5a32');
-  p.rect(3, 4, 26, 8, '#b07a42');
-  for (let x = 4; x < 28; x += 3) p.rect(x, 5, 1, 6, '#9a6337');
+  const c = new Pix(32, 16);
+  c.rect(3, 1, 26, 14, '#1a6e48');
+  c.rect(4, 2, 24, 12, '#1f7a50');
+  c.outline();
+  p.blit(c, 0, 0);
+  text(p, 'LOCKER', 16 - Math.floor(textWidth('LOCKER') / 2), 3, '#ffffff');
+  text(p, 'ROOM', 16 - Math.floor(textWidth('ROOM') / 2), 9, '#ffffff');
+  return p;
+}
+
+function lockersBackdrop() {
+  // 120x130 backdrop for the wardrobe: a row of lockers over a tiled floor.
+  const p = new Pix(120, 130);
+  for (let y = 0; y < 130; y++) for (let x = 0; x < 120; x++) {
+    if (y < 84) {
+      const lx = x % 24;
+      let c = '#136352';
+      if (y < 6) c = '#0d4a3e';
+      else if (lx === 0 || lx === 23) c = '#0c4337';
+      else if (lx === 1) c = '#1b7a66';
+      if (y >= 80) c = '#0c4337';
+      p.set(x, y, c);
+    } else {
+      const gx = x % 20, gy = (y - 84) % 20;
+      const v = (x * 7 + y * 13) % 17;
+      p.set(x, y, gx === 0 || gy === 0 ? '#b8b8b4' : v === 0 ? '#c6c6c2' : '#dcdcd8');
+    }
+  }
+  for (let i = 0; i < 5; i++) {
+    const x0 = i * 24;
+    // vents
+    for (const vy of [16, 19, 22, 62, 65, 68]) p.rect(x0 + 6, vy, 12, 1, '#2a9a80');
+    // number plate
+    p.rect(x0 + 7, 9, 10, 6, '#e8e8e2');
+    text(p, String(40 + i), x0 + 9, 10, '#2a2a2a');
+    // handle
+    p.rect(x0 + 18, 34, 2, 2, '#2a3a36');
+    p.rect(x0 + 18, 37, 2, 6, '#2a3a36');
+  }
   return p;
 }
 
@@ -1002,9 +1156,16 @@ export function generateObjects() {
     'objects/tree_oak': treeOak(),
     'objects/tree_pine': treePine(),
     'objects/tree_palm': treePalm(),
-    'objects/bush': bush(false),
-    'objects/bush_berry': bush(true),
-    'objects/flowers_red': flowers('#e8484f', '#b8323a'),
+    'objects/tree_apple': treeApple(),
+    'objects/bush': bush(null),
+    'objects/bush_berry': bush('berry'),
+    'objects/bush_flowers_white': bush('white'),
+    'objects/bush_flowers_red': bush('red'),
+    'objects/bush_flowers_orange': bush('orange'),
+    'objects/flower_bed': flowerBed(),
+    'objects/garden_plot': gardenPlot(),
+    'objects/hole_sign': holeSign(),
+    'objects/flowers_red': flowers('#ee3a3a', '#c42a2a'),
     'objects/flowers_yellow': flowers('#ffd34a', '#d8a828'),
     'objects/flowers_blue': flowers('#6aa8ff', '#3f7fd0'),
     'objects/flowers_pink': flowers('#ff9ad0', '#e06aa8'),
@@ -1061,6 +1222,9 @@ export function generateObjects() {
     'interior/pennant': wallPennant(),
     'interior/neon_open': neonOpen(),
     'interior/door_mat': doorMat(),
+    'interior/locker_door': lockerDoor(),
+    'interior/sign_locker': lockerSign(),
+    'ui/lockers': lockersBackdrop(),
     'ui/panel': panel(false),
     'ui/panel_dark': panel(true),
     'ui/cursor': cursor(),

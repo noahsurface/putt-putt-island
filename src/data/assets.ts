@@ -11,14 +11,15 @@ export interface ImageAsset {
 const img = (key: string, path: string, frame?: { w: number; h: number }): ImageAsset => ({ key, path, frame });
 
 const OBJECT_IMAGES = [
-  'tree_oak', 'tree_pine', 'tree_palm', 'bush', 'bush_berry', 'flowers_red', 'flowers_yellow', 'flowers_blue', 'flowers_pink',
+  'tree_oak', 'tree_apple', 'tree_pine', 'tree_palm', 'bush', 'bush_berry', 'bush_flowers_white', 'bush_flowers_red',
+  'bush_flowers_orange', 'flower_bed', 'garden_plot', 'hole_sign', 'flowers_red', 'flowers_yellow', 'flowers_blue', 'flowers_pink',
   'tall_grass', 'rock', 'boulder', 'stump', 'bench', 'lamp', 'sign', 'barrel', 'crate', 'umbrella', 'deck_chair', 'shell',
   'starfish', 'tiki_torch', 'ball_statue', 'mailbox', 'picnic_table', 'starter_board',
 ];
 
 const INTERIOR_IMAGES = [
   'counter', 'shelf_balls', 'club_rack', 'bag_stand', 'trophy_case', 'potted_plant', 'rug', 'armchair', 'coffee_table',
-  'mirror', 'putting_mat', 'poster', 'clock', 'window', 'pennant', 'neon_open', 'door_mat',
+  'mirror', 'putting_mat', 'poster', 'clock', 'window', 'pennant', 'neon_open', 'door_mat', 'locker_door', 'sign_locker',
   'floor_wood', 'floor_checker', 'floor_carpet', 'floor_tile', 'wall_cream', 'wall_stripe', 'wall_panel', 'wall_navy',
 ];
 
@@ -34,7 +35,7 @@ const CHAR = { w: 16, h: 32 };
 export const ASSET_IMAGES: ImageAsset[] = [
   ...['sand', 'grass', 'dirt', 'stone', 'brick', 'green', 'bunker'].map((t) => img(`terrain_${t}`, `assets/terrain/${t}.png`, { w: 16, h: 16 })),
   img('water', 'assets/terrain/water.png', { w: 32, h: 32 }),
-  ...['rail_wood', 'rail_brick', 'rail_stone', 'fence_white', 'hedge'].map((w) => img(`wall_${w}`, `assets/walls/${w}.png`, { w: 16, h: 24 })),
+  ...['rail_wood', 'rail_brick', 'rail_stone', 'fence_white', 'fence_wood', 'hedge'].map((w) => img(`wall_${w}`, `assets/walls/${w}.png`, { w: 16, h: 24 })),
   ...OBJECT_IMAGES.map((o) => img(o, `assets/objects/${o}.png`)),
   ...INTERIOR_IMAGES.map((o) => img(o, `assets/interior/${o}.png`)),
   img('proshop', 'assets/buildings/proshop.png'),
@@ -51,6 +52,7 @@ export const ASSET_IMAGES: ImageAsset[] = [
   img('ui_panel_dark', 'assets/ui/panel_dark.png'),
   img('ui_cursor', 'assets/ui/cursor.png', { w: 16, h: 16 }),
   img('ui_icons', 'assets/ui/icons.png', { w: 32, h: 32 }),
+  img('ui_lockers', 'assets/ui/lockers.png'),
   img('char_body', 'assets/character/body.png', CHAR),
   img('char_arms', 'assets/character/arms.png', CHAR),
   img('char_face', 'assets/character/face.png', CHAR),

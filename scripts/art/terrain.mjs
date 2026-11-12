@@ -1,4 +1,7 @@
-// Terrain auto-tiles and wall (rail / fence / hedge) auto-tiles.
+// Terrain auto-tiles and wall (border / fence / hedge) auto-tiles.
+//
+// Style: bright, flat cartoon colours with fine speckled texture, no black
+// outlines (edges are darker shades of the same colour).
 //
 // Terrain sheets are 16 columns (one per neighbour mask) x 3 rows (texture variants).
 // Mask bits: N=1, E=2, S=4, W=8 — a bit is set when that neighbour is the same layer.
@@ -6,20 +9,26 @@ import { Pix, rng, save, sheet } from './pix.mjs';
 
 const T = 16;
 
-function makeMaskFns(mask, inset, round) {
+/**
+ * Shape of a tile given which sides are open. `corner` is 'round', 'chamfer'
+ * (45° cut, like the putting greens) or 'square' (stepped, blocky edges).
+ */
+function makeMaskFns(mask, inset, corner, size) {
   const open = { n: !(mask & 1), e: !(mask & 2), s: !(mask & 4), w: !(mask & 8) };
   const iN = open.n ? inset : 0, iS = open.s ? inset : 0, iE = open.e ? inset : 0, iW = open.w ? inset : 0;
-  const r = round;
   const inCore = (x, y) => {
     if (x < iW || x >= T - iE || y < iN || y >= T - iS) return false;
-    const corner = (cx, cy) => {
-      const dx = x + 0.5 - cx, dy = y + 0.5 - cy;
-      return dx * dx + dy * dy <= r * r + 0.3;
+    if (corner === 'square' || !size) return true;
+    const cut = (dx, dy) => {
+      // dx, dy = distance in px from the corner along each edge (0-based)
+      if (corner === 'chamfer') return dx + dy >= size;
+      const cx = size - dx - 0.5, cy = size - dy - 0.5;
+      return cx <= 0 || cy <= 0 || cx * cx + cy * cy <= size * size + 0.3;
     };
-    if (open.n && open.w && x < iW + r && y < iN + r) return corner(iW + r, iN + r);
-    if (open.n && open.e && x >= T - iE - r && y < iN + r) return corner(T - iE - r, iN + r);
-    if (open.s && open.w && x < iW + r && y >= T - iS - r) return corner(iW + r, T - iS - r);
-    if (open.s && open.e && x >= T - iE - r && y >= T - iS - r) return corner(T - iE - r, T - iS - r);
+    if (open.n && open.w && x < iW + size && y < iN + size && !cut(x - iW, y - iN)) return false;
+    if (open.n && open.e && x >= T - iE - size && y < iN + size && !cut(T - iE - 1 - x, y - iN)) return false;
+    if (open.s && open.w && x < iW + size && y >= T - iS - size && !cut(x - iW, T - iS - 1 - y)) return false;
+    if (open.s && open.e && x >= T - iE - size && y >= T - iS - size && !cut(T - iE - 1 - x, T - iS - 1 - y)) return false;
     return true;
   };
   // Membership including virtual pixels just beyond the tile on connected sides.
@@ -39,120 +48,84 @@ function distTo(inside, x, y, dx, dy, max) {
   return Infinity;
 }
 
+function edgeDist(inside, x, y, max) {
+  return Math.min(distTo(inside, x, y, 0, 1, max), distTo(inside, x, y, 0, -1, max), distTo(inside, x, y, 1, 0, max), distTo(inside, x, y, -1, 0, max));
+}
+
+/** Fine 3-tone speckle. */
+const speckle = (base, dark, light, pd = 0.16, pl = 0.12) => (x, y, r) => {
+  const v = r();
+  return v < pd ? dark : v < pd + pl ? light : base;
+};
+
 const LAYERS = {
   sand: {
-    inset: 2, round: 4,
-    tex(x, y, r) {
-      const v = r();
-      if (v < 0.07) return '#dcb877';
-      if (v < 0.12) return '#fbe9c2';
-      return '#f0d49a';
-    },
+    inset: 1, corner: 'round', size: 3,
+    tex: speckle('#e6c582', '#d4ae6a', '#f2d89e', 0.18, 0.12),
     edge(x, y, ins, col) {
-      const d = Math.min(distTo(ins, x, y, 0, 1, 3), distTo(ins, x, y, 0, -1, 3), distTo(ins, x, y, 1, 0, 3), distTo(ins, x, y, -1, 0, 3));
-      if (d === 1) return '#d1a865';
-      if (d === 2) return '#dfbb7a';
-      return col;
+      return edgeDist(ins, x, y, 1) === 1 ? '#f4e0b0' : col;
     },
   },
   grass: {
-    inset: 0, round: 4,
-    tex(x, y, r) {
-      const v = r();
-      if (v < 0.05 && y > 0 && y < 15) return 'blade';
-      if (v < 0.1) return '#6fbb45';
-      if (v < 0.13) return '#4f9a34';
-      return '#5aa83c';
-    },
+    inset: 0, corner: 'square', size: 0,
+    tex: speckle('#5a9c3e', '#4c8b34', '#68ab48', 0.2, 0.16),
+    // A tan sandy rim wherever grass meets water or beach (like the pond banks).
     edge(x, y, ins, col) {
-      const dS = distTo(ins, x, y, 0, 1, 4);
-      if (dS === 1) return '#4a2c16';
-      if (dS === 2) return '#6b4122';
-      if (dS === 3) return '#8a5a30';
-      if (dS === 4) return '#3d7d2a';
-      const d = Math.min(distTo(ins, x, y, 0, -1, 1), distTo(ins, x, y, 1, 0, 1), distTo(ins, x, y, -1, 0, 1));
-      if (d === 1) return '#36702a';
+      const d = edgeDist(ins, x, y, 2);
+      if (d === 1) return '#d8b06a';
+      if (d === 2) return (x + y) % 3 ? '#c99e5a' : '#e2bf7e';
       return col;
     },
   },
   dirt: {
-    inset: 0, round: 3,
-    tex(x, y, r) {
-      const v = r();
-      if (v < 0.06) return '#9c6c3c';
-      if (v < 0.12) return '#dcb07a';
-      return '#c9995f';
-    },
+    inset: 0, corner: 'square', size: 0,
+    tex: speckle('#c98d55', '#b07745', '#dca06a', 0.22, 0.12),
     edge(x, y, ins, col) {
-      const d = Math.min(distTo(ins, x, y, 0, 1, 1), distTo(ins, x, y, 0, -1, 1), distTo(ins, x, y, 1, 0, 1), distTo(ins, x, y, -1, 0, 1));
-      if (d === 1) return '#9c6c3c';
-      return col;
+      return edgeDist(ins, x, y, 1) === 1 ? '#b07745' : col;
     },
   },
   stone: {
-    inset: 0, round: 2,
-    tex(x, y) {
-      // Seamless cobble pattern: three courses of 16 rows, alternate offset.
-      const rows = [[0, 5], [5, 11], [11, 16]];
-      const ri = rows.findIndex(([a, b]) => y >= a && y < b);
-      const [y0, y1] = rows[ri];
-      const off = ri === 1 ? 4 : 0;
-      const lx = (x + off) % 8;
-      const stoneId = Math.floor(((x + off) % 16) / 8) + ri * 2;
-      if (lx === 7 || y === y1 - 1) return '#857e72';
-      if (lx === 0 || y === y0) return '#dcd5c7';
-      if (lx === 6 || y === y1 - 2) return '#a39c8e';
-      return stoneId % 3 === 0 ? '#bdb6a8' : stoneId % 3 === 1 ? '#c7c0b2' : '#b4ad9f';
-    },
+    // Grey gravel path.
+    inset: 0, corner: 'square', size: 0,
+    tex: speckle('#a9a9a7', '#949492', '#bdbdbb', 0.24, 0.16),
     edge(x, y, ins, col) {
-      const d = Math.min(distTo(ins, x, y, 0, 1, 1), distTo(ins, x, y, 0, -1, 1), distTo(ins, x, y, 1, 0, 1), distTo(ins, x, y, -1, 0, 1));
-      if (d === 1) return '#6e685e';
-      return col;
+      return edgeDist(ins, x, y, 1) === 1 ? '#9a9a98' : col;
     },
   },
   brick: {
-    inset: 0, round: 2,
+    inset: 0, corner: 'square', size: 0,
     tex(x, y) {
       const row = Math.floor(y / 4);
       const off = row % 2 ? 4 : 0;
       const lx = (x + off) % 8;
-      if (y % 4 === 3 || lx === 7) return '#8e4a37';
-      if (y % 4 === 0 || lx === 0) return '#d98466';
-      return ((Math.floor((x + off) / 8) + row) % 3) === 0 ? '#b45d44' : '#c56a4f';
+      if (y % 4 === 3 || lx === 7) return '#a8553f';
+      if (y % 4 === 0) return '#d98466';
+      return ((Math.floor((x + off) / 8) + row) % 3) === 0 ? '#c0654b' : '#c96f54';
     },
     edge(x, y, ins, col) {
-      const d = Math.min(distTo(ins, x, y, 0, 1, 1), distTo(ins, x, y, 0, -1, 1), distTo(ins, x, y, 1, 0, 1), distTo(ins, x, y, -1, 0, 1));
-      if (d === 1) return '#6e3527';
-      return col;
+      return edgeDist(ins, x, y, 1) === 1 ? '#a8553f' : col;
     },
   },
   green: {
-    inset: 0, round: 2,
+    // Lime putting green with diagonal mowing stripes and cut corners.
+    inset: 0, corner: 'chamfer', size: 5,
     tex(x, y, r) {
-      const stripe = Math.floor(y / 4) % 2 === 0;
+      const stripe = Math.floor((x + y) / 4) % 2 === 0;
       const v = r();
-      if (v < 0.05) return stripe ? '#5ccc69' : '#53c060';
-      return stripe ? '#4fbe5d' : '#46b154';
+      if (v < 0.06) return stripe ? '#93cf45' : '#86c23a';
+      return stripe ? '#8ccb3f' : '#7fbd36';
     },
     edge(x, y, ins, col) {
-      const d = Math.min(distTo(ins, x, y, 0, 1, 1), distTo(ins, x, y, 0, -1, 1), distTo(ins, x, y, 1, 0, 1), distTo(ins, x, y, -1, 0, 1));
-      if (d === 1) return '#2f7d3c';
-      return col;
+      return edgeDist(ins, x, y, 1) === 1 ? '#6fa82e' : col;
     },
   },
   bunker: {
-    inset: 0, round: 4,
-    tex(x, y, r) {
-      const wobble = Math.round(Math.sin((x + 3) * 0.7) * 0.6);
-      if ((y + wobble) % 4 === 0) return '#f8e7bd';
-      return r() < 0.06 ? '#e0c88f' : '#efd9a4';
-    },
+    inset: 0, corner: 'chamfer', size: 4,
+    tex: speckle('#ecd59a', '#dcc082', '#f6e3b2', 0.18, 0.14),
     edge(x, y, ins, col) {
       const dN = distTo(ins, x, y, 0, -1, 2);
-      const d = Math.min(distTo(ins, x, y, 0, 1, 1), dN, distTo(ins, x, y, 1, 0, 1), distTo(ins, x, y, -1, 0, 1));
-      if (d === 1) return '#b48f55';
-      if (dN === 2) return '#cfb27a';
-      if (distTo(ins, x, y, -1, 0, 2) === 2) return '#dcc28b';
+      if (edgeDist(ins, x, y, 1) === 1) return '#c9a86a';
+      if (dN === 2) return '#d8bd84';
       return col;
     },
   },
@@ -160,82 +133,43 @@ const LAYERS = {
 
 function terrainTile(name, mask, variant) {
   const L = LAYERS[name];
-  const { inside } = makeMaskFns(mask, L.inset, L.round);
+  const { inside } = makeMaskFns(mask, L.inset, L.corner, L.size);
   const p = new Pix(T, T);
   const r = rng(1000 * variant + name.length * 77 + 13);
-  // Interior texture first (pattern is independent of mask so tiles join seamlessly).
   const tex = [];
   for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) tex.push(L.tex(x, y, r));
   for (let y = 0; y < T; y++) {
     for (let x = 0; x < T; x++) {
-      let c = tex[y * T + x];
-      if (c === 'blade') c = '#5aa83c';
       if (!inside(x, y)) continue;
-      p.set(x, y, L.edge(x, y, inside, c));
-    }
-  }
-  // Grass blades: little dark "v" tufts.
-  if (name === 'grass') {
-    const rb = rng(500 + variant * 31);
-    for (let i = 0; i < 5; i++) {
-      const bx = 2 + Math.floor(rb() * 12), by = 2 + Math.floor(rb() * 9);
-      if (!inside(bx, by) || !inside(bx + 2, by + 1) || !inside(bx, by + 5)) continue;
-      p.set(bx, by, '#3f7f2c');
-      p.set(bx + 2, by, '#3f7f2c');
-      p.set(bx + 1, by + 1, '#3f7f2c');
-      p.set(bx, by - 1, '#78c24c');
-    }
-  }
-  if (name === 'dirt') {
-    const rb = rng(900 + variant * 17);
-    for (let i = 0; i < 3; i++) {
-      const bx = 2 + Math.floor(rb() * 12), by = 2 + Math.floor(rb() * 12);
-      if (!inside(bx, by) || !inside(bx + 1, by + 1)) continue;
-      p.set(bx, by, '#e3c08f');
-      p.set(bx + 1, by, '#9c6c3c');
-      p.set(bx, by + 1, '#9c6c3c');
+      p.set(x, y, L.edge(x, y, inside, tex[y * T + x]));
     }
   }
   if (name === 'sand') {
-    // Foam just outside the sand on open sides.
-    for (let y = 0; y < T; y++) {
-      for (let x = 0; x < T; x++) {
-        if (inside(x, y)) continue;
-        const near1 = inside(x + 1, y) || inside(x - 1, y) || inside(x, y + 1) || inside(x, y - 1);
-        if (near1 && (x * 3 + y * 5) % 7 !== 0) p.set(x, y, '#f4fbffd0');
-        else if (!near1) {
-          const near2 = inside(x + 2, y) || inside(x - 2, y) || inside(x, y + 2) || inside(x, y - 2);
-          if (near2 && (x + y * 2) % 4 === 0) p.set(x, y, '#e6f6ff90');
-        }
-      }
+    // Thin light rim on the water side of the beach.
+    for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) {
+      if (inside(x, y)) continue;
+      if (inside(x + 1, y) || inside(x - 1, y) || inside(x, y + 1) || inside(x, y - 1)) p.set(x, y, '#bfeaf8b0');
     }
   }
   return p;
 }
 
 function waterFrames() {
+  // Flat, bright cyan with a few soft glints.
   const frames = [];
   const r = rng(4242);
-  const dashes = [];
-  for (let i = 0; i < 14; i++) dashes.push({ x: Math.floor(r() * 32), y: Math.floor(r() * 32), len: 2 + Math.floor(r() * 3), ph: Math.floor(r() * 4) });
-  const sparkles = [];
-  for (let i = 0; i < 4; i++) sparkles.push({ x: Math.floor(r() * 32), y: Math.floor(r() * 32), ph: i });
+  const glints = [];
+  for (let i = 0; i < 9; i++) glints.push({ x: Math.floor(r() * 32), y: Math.floor(r() * 32), len: 2 + Math.floor(r() * 2), ph: Math.floor(r() * 4) });
   for (let f = 0; f < 4; f++) {
     const p = new Pix(32, 32);
-    for (let y = 0; y < 32; y++) {
-      for (let x = 0; x < 32; x++) {
-        const n = Math.sin((x + f * 2) * 0.4) + Math.sin((y * 0.7 + x * 0.2) * 0.5 + f * 0.6);
-        p.set(x, y, n > 1.1 ? '#4a94d2' : n < -1.2 ? '#3576b3' : '#3d86c6');
-      }
+    for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+      const n = Math.sin((x + f * 2) * 0.35) + Math.sin((y * 0.6 + x * 0.15) * 0.5 + f * 0.5);
+      p.set(x, y, n > 1.4 ? '#22b4ea' : '#19ade6');
     }
-    for (const d of dashes) {
-      const shift = (f + d.ph) % 4;
-      for (let k = 0; k < d.len; k++) p.set((d.x + k + shift) % 32, d.y, '#6ab3e6');
-    }
-    for (const s of sparkles) if (s.ph === f) {
-      p.set(s.x, s.y, '#d8f3ff');
-      p.set((s.x + 1) % 32, s.y, '#9fd3f5');
-      p.set((s.x + 31) % 32, s.y, '#9fd3f5');
+    for (const g of glints) {
+      if ((f + g.ph) % 4 === 3) continue;
+      const shift = (f + g.ph) % 4;
+      for (let k = 0; k < g.len; k++) p.set((g.x + k + shift) % 32, g.y, '#6fd2f4');
     }
     frames.push(p);
   }
@@ -246,16 +180,16 @@ function waterFrames() {
 // Frames are 16x24: the bottom 16 rows line up with the map cell, the top
 // 8 rows give walls room to stand up (2.5D).
 export const WALLS = {
-  rail_wood: { t: 4, h: 3, top: ['#e0a96a', '#c98f52'], side: ['#a3693a', '#7c4b26'], out: '#4a2c17' },
-  rail_brick: { t: 6, h: 4, top: ['#d4775a', '#b85f45'], side: ['#9e4c37', '#7a3828'], out: '#4f2219', brick: true },
-  rail_stone: { t: 6, h: 4, top: ['#d0cabd', '#b3ad9f'], side: ['#958f82', '#757064'], out: '#3f3b35', brick: true },
-  fence_white: { t: 2, h: 9, top: ['#ffffff', '#f2f2f2'], side: ['#e6e8ee', '#c9ccd6'], out: '#6c7084', picket: true },
-  hedge: { t: 12, h: 7, top: ['#5fae43', '#4c9a35'], side: ['#3f8530', '#2f6b25'], out: '#1f4a17', leafy: true },
+  // The brown cobble border around the greens.
+  rail_wood: { t: 12, h: 2, kind: 'cobble', top: ['#b5744a', '#a3653d', '#c98b5c'], side: ['#8a5232', '#7a4629'], out: '#6e3f24' },
+  rail_brick: { t: 12, h: 2, kind: 'cobble', top: ['#c9624a', '#b5543e', '#dd7a60'], side: ['#9a4330', '#843727'], out: '#7a3426' },
+  rail_stone: { t: 12, h: 2, kind: 'cobble', top: ['#b9b6ae', '#a6a39b', '#cfccc4'], side: ['#8c8982', '#7a7770'], out: '#6e6b64' },
+  fence_white: { t: 2, h: 9, kind: 'picket', top: ['#ffffff', '#f2f2f2'], side: ['#f0f0f2', '#d8d9e0'], out: '#b8bac6' },
+  fence_wood: { t: 2, h: 9, kind: 'rail', top: ['#8a5232', '#7a4629'], side: ['#8a5232', '#6e3f24'], out: '#5a321c' },
+  hedge: { t: 12, h: 7, kind: 'leafy', top: ['#2f8a48', '#26773d'], side: ['#22703a', '#1b5e30'], out: '#185228' },
 };
 
 function wallFootprint(t, ext) {
-  // Returns fn(x,y) for footprint membership in cell coords, extending `ext`
-  // pixels beyond the cell on connected sides (for seamless outlines).
   const c0 = Math.floor((T - t) / 2), c1 = c0 + t;
   return (mask) => (x, y) => {
     const inC = (v) => v >= c0 && v < c1;
@@ -273,18 +207,26 @@ function wallTile(spec, mask) {
   const W = T + PAD * 2, H = 24 + PAD * 2;
   const p = new Pix(W, H);
   const fp = wallFootprint(spec.t, PAD)(mask);
+  const c0 = Math.floor((T - spec.t) / 2);
+  const inC = (v) => v >= c0 && v < c0 + spec.t;
   const OY = 8 + PAD, OX = PAD;
   const r = rng(mask * 7 + spec.t * 131);
-  // sides
+  // sides (front faces)
   for (let y = -PAD; y < T + PAD; y++) {
     for (let x = -PAD; x < T + PAD; x++) {
       if (!fp(x, y)) continue;
       for (let k = 0; k < spec.h; k++) {
         let c = k < spec.h / 2 ? spec.side[1] : spec.side[0];
-        if (spec.picket && (x & 3) === 3 && k > 1 && k < spec.h - 1) c = null;
-        if (spec.picket && k === spec.h - 3) c = spec.side[0];
-        if (spec.brick && (k === Math.floor(spec.h / 2) || ((x + (k > spec.h / 2 ? 2 : 0)) % 4 === 0))) c = spec.out + '90';
-        if (spec.leafy && r() < 0.25) c = '#4f9a3a';
+        if (spec.kind === 'picket' && (x & 3) === 3 && k > 1 && k < spec.h - 1) c = null;
+        if (spec.kind === 'picket' && k === spec.h - 3) c = spec.side[0];
+        // Post-and-rail fence: posts every 4px, two rails.
+        // Post-and-rail fence: posts every 6px along the run, two rails between.
+        if (spec.kind === 'rail') {
+          const along = inC(y) ? x : y;
+          const post = ((along + 64) % 6) === 1;
+          c = post ? (k === spec.h - 1 ? '#a8704a' : spec.side[0]) : (k === 3 || k === spec.h - 3) ? spec.side[1] : null;
+        }
+        if (spec.kind === 'leafy' && r() < 0.25) c = '#2a7d42';
         if (c) p.set(OX + x, OY + y - k, c);
       }
     }
@@ -293,19 +235,27 @@ function wallTile(spec, mask) {
   for (let y = -PAD; y < T + PAD; y++) {
     for (let x = -PAD; x < T + PAD; x++) {
       if (!fp(x, y)) continue;
-      let c = spec.top[(x + y) % 5 === 0 ? 1 : 0];
-      if (spec.leafy) {
+      let c = spec.top[0];
+      if (spec.kind === 'cobble') {
+        // Rounded cobbles: 4x4 stones with dark gaps and a lit top-left.
+        const ox = (Math.floor((y + 64) / 4) % 2) * 2;
+        const lx = (x + 64 + ox) % 4, ly = (y + 64) % 4;
+        const id = Math.floor((x + 64 + ox) / 4) * 7 + Math.floor((y + 64) / 4) * 3;
+        if (lx === 3 || ly === 3) c = spec.side[0];
+        else if (lx === 0 && ly === 0) c = spec.top[2];
+        else c = id % 3 === 0 ? spec.top[1] : spec.top[0];
+      } else if (spec.kind === 'leafy') {
         const v = r();
-        c = v < 0.2 ? '#76c454' : v < 0.4 ? spec.top[1] : spec.top[0];
+        c = v < 0.2 ? '#3fa25a' : v < 0.45 ? spec.top[1] : spec.top[0];
+      } else if (spec.kind === 'rail') {
+        const along = inC(y) ? x : y;
+        c = ((along + 64) % 6) === 1 ? '#a8704a' : spec.top[0];
       }
-      if (spec.brick && ((y % 3 === 0) || (x + (Math.floor(y / 3) % 2) * 2) % 4 === 0)) c = spec.top[1];
-      // highlight on the northern edge of the top face
-      if (!fp(x, y - 1)) c = spec.leafy ? '#86d062' : spec.top[0];
-      p.set(OX + x, OY + y - spec.h, c);
+      if (c && !fp(x, y - 1) && spec.kind !== 'cobble' && spec.kind !== 'rail') c = spec.kind === 'leafy' ? '#4fb468' : spec.top[0];
+      if (c) p.set(OX + x, OY + y - spec.h, c);
     }
   }
   p.outline(spec.out);
-  // Crop the padded tile.
   const out = new Pix(T, 24);
   for (let y = 0; y < 24; y++) for (let x = 0; x < T; x++) {
     const c = p.get(x + PAD, y + PAD);

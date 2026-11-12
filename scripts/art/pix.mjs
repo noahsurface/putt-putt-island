@@ -18,6 +18,9 @@ export function mix(a, b, t) {
   return [0, 1, 2, 3].map((i) => Math.round(A[i] + (B[i] - A[i]) * t));
 }
 
+/** Global outline style: soft = darker shade of the neighbour colour. */
+export const OUTLINE = { soft: true, factor: 0.6 };
+
 export function shade(c, f) {
   const [r, g, b, a] = rgba(c);
   return [Math.min(255, Math.round(r * f)), Math.min(255, Math.round(g * f)), Math.min(255, Math.round(b * f)), a];
@@ -119,18 +122,23 @@ export class Pix {
     return this;
   }
 
-  /** Paint `c` on every transparent pixel 4-adjacent to an opaque one. */
+  /**
+   * Paint an outline on every transparent pixel 4-adjacent to an opaque one.
+   * In 'soft' outline mode (the default style) the colour is a darker shade of
+   * the neighbouring pixel instead of `c`, giving same-hue edges, not black lines.
+   */
   outline(c, diagonal = false) {
     const pts = [];
+    const opaque = (x, y) => this.alpha(x, y) > 200;
     for (let y = 0; y < this.h; y++) {
       for (let x = 0; x < this.w; x++) {
         if (this.alpha(x, y) > 0) continue;
-        let n = this.alpha(x - 1, y) > 200 || this.alpha(x + 1, y) > 200 || this.alpha(x, y - 1) > 200 || this.alpha(x, y + 1) > 200;
-        if (!n && diagonal) n = this.alpha(x - 1, y - 1) > 200 || this.alpha(x + 1, y - 1) > 200 || this.alpha(x - 1, y + 1) > 200 || this.alpha(x + 1, y + 1) > 200;
-        if (n) pts.push([x, y]);
+        const nb = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]].find(([a, b]) => opaque(a, b))
+          ?? (diagonal ? [[x - 1, y - 1], [x + 1, y - 1], [x - 1, y + 1], [x + 1, y + 1]].find(([a, b]) => opaque(a, b)) : undefined);
+        if (nb) pts.push([x, y, nb]);
       }
     }
-    for (const [x, y] of pts) this.set(x, y, c);
+    for (const [x, y, [nx, ny]] of pts) this.set(x, y, OUTLINE.soft ? shade(this.get(nx, ny), OUTLINE.factor) : c);
     return this;
   }
 

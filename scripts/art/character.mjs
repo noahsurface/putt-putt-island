@@ -5,7 +5,8 @@
 // (skin tone, hair colour, shirt colour...). Only the `face` layer is full colour.
 import { Pix, save, sheet } from './pix.mjs';
 
-const G = { O: '#505050', S: '#aaaaaa', M: '#d6d6d6', H: '#ffffff' };
+// Edges are a darker shade of each part's own colour (no near-black outlines).
+const G = { O: '#8e8e8e', S: '#c2c2c2', M: '#e2e2e2', H: '#ffffff' };
 const DIRS = ['down', 'side', 'up'];
 const FRAMES = [0, 1, 2];
 
@@ -46,10 +47,16 @@ const HEAD = {
 };
 HEAD.up = HEAD.down;
 
+// Big friendly eyes (white + dark pupil), a little smile and rosy cheeks.
 const FACE = {
-  down: { e: [[5, 8], [5, 9], [10, 8], [10, 9]], b: [[3, 10], [4, 10], [11, 10], [12, 10]] },
-  side: { e: [[11, 8], [11, 9]], b: [[12, 10]] },
-  up: { e: [], b: [] },
+  down: {
+    w: [[4, 8], [4, 9], [11, 8], [11, 9]],
+    e: [[5, 8], [5, 9], [10, 8], [10, 9]],
+    m: [[6, 10], [9, 10], [7, 11], [8, 11]],
+    b: [[3, 10], [12, 10]],
+  },
+  side: { w: [[10, 8], [10, 9]], e: [[11, 8], [11, 9]], m: [[11, 11], [12, 11]], b: [[12, 10]] },
+  up: { w: [], e: [], m: [], b: [] },
 };
 
 // ---------------------------------------------------------------- hair
@@ -500,8 +507,10 @@ function skinLayer() {
 function faceLayer() {
   return layerSheet((p, b, dir) => {
     const f = FACE[dir];
-    f.e.forEach(([x, y]) => p.set(x, y + b.bob, '#2b1d14'));
-    f.b.forEach(([x, y]) => p.set(x, y + b.bob, '#ff8a8a70'));
+    f.w.forEach(([x, y]) => p.set(x, y + b.bob, '#ffffff'));
+    f.e.forEach(([x, y]) => p.set(x, y + b.bob, '#1e1612'));
+    f.m.forEach(([x, y]) => p.set(x, y + b.bob, '#a8403a'));
+    f.b.forEach(([x, y]) => p.set(x, y + b.bob, '#ff6a6a80'));
   });
 }
 
@@ -567,7 +576,7 @@ function hatLayer(style) {
 
 function shadowSprite() {
   const p = new Pix(16, 6);
-  p.ellipse(8, 3, 6, 2, '#00000048');
+  p.ellipse(8, 3, 7, 2.6, '#1c241888');
   return p;
 }
 

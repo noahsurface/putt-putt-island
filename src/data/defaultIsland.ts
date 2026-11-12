@@ -40,9 +40,9 @@ const HOLES: HoleSpec[] = [
     objects: [{ id: 'bumper', x: 21, y: 35 }], bunkers: [[14, 36, 2, 2]],
   },
   // 3 — The Windmill: time your putt through the spinning blades.
-  { par: 3, greens: [[32, 40, 15, 5]], tee: [33, 42], cup: [45, 42], objects: [{ id: 'spinner', x: 39, y: 42 }], rail: Wall.RailBrick },
+  { par: 3, greens: [[32, 40, 15, 5]], tee: [33, 42], cup: [45, 42], objects: [{ id: 'spinner', x: 39, y: 42 }] },
   // 4 — Bridge Over Water: a one-tile bridge across the pond.
-  { par: 3, greens: [[50, 34, 15, 5]], tee: [51, 36], cup: [63, 36], water: [[56, 34, 2, 2], [56, 37, 2, 2]], rail: Wall.RailStone },
+  { par: 3, greens: [[50, 34, 15, 5]], tee: [51, 36], cup: [63, 36], water: [[56, 34, 2, 2], [56, 37, 2, 2]] },
   // 5 — Boost Alley: ride the boost pads and dodge the bumpers.
   {
     par: 3, greens: [[50, 26, 15, 4]], tee: [51, 27], cup: [63, 28],
@@ -54,7 +54,7 @@ const HOLES: HoleSpec[] = [
   // 6 — The Zig-Zag: a long par 4 finishing by the clubhouse.
   {
     par: 4, greens: [[32, 22, 13, 3], [41, 25, 4, 7], [32, 32, 13, 3]], tee: [33, 23], cup: [33, 33],
-    bunkers: [[42, 32, 3, 1]], objects: [{ id: 'bumper', x: 37, y: 33 }], rail: Wall.RailBrick,
+    bunkers: [[42, 32, 3, 1]], objects: [{ id: 'bumper', x: 37, y: 33 }],
   },
 ];
 
@@ -78,12 +78,12 @@ export function createDefaultIsland(): IslandData {
   }
 
   // Paths
-  fill([18, 17, 19, 2], Terrain.Dirt); // west path to the starter board
-  fill([47, 17, 2, 31], Terrain.Dirt); // central north-south path
-  fill([45, 17, 4, 2], Terrain.Dirt);
-  fill([20, 47, 41, 2], Terrain.Dirt); // southern beach path
-  fill([49, 31, 17, 2], Terrain.Dirt); // east path between holes 4 and 5
-  fill([30, 24, 1, 23], Terrain.Dirt); // path between holes 2 and 6
+  fill([18, 17, 19, 2], Terrain.Stone); // west path to the starter board
+  fill([47, 17, 2, 31], Terrain.Stone); // central north-south path
+  fill([45, 17, 4, 2], Terrain.Stone);
+  fill([20, 47, 41, 2], Terrain.Stone); // southern beach path
+  fill([49, 31, 17, 2], Terrain.Stone); // east path between holes 4 and 5
+  fill([30, 24, 1, 23], Terrain.Stone); // path between holes 2 and 6
   fill([36, 16, 9, 3], Terrain.Stone); // plaza in front of the shop
 
   const data: IslandData = {
@@ -137,6 +137,17 @@ export function createDefaultIsland(): IslandData {
   place('sign', 19, 16);
   place('bench', 31, 46);
   place('picnic_table', 24, 14);
+
+  // A little garden corner: flower bed and veg plots behind a wooden fence.
+  place('flower_bed', 18, 41);
+  place('garden_plot', 21, 41);
+  place('garden_plot', 24, 41);
+  for (let x = 17; x <= 26; x++) map.setWall(x, 43, Wall.FenceWood);
+  place('bush_flowers_orange', 18, 44);
+  place('bush_flowers_red', 20, 44);
+  place('bush_flowers_white', 22, 44);
+  place('tree_apple', 27, 41);
+  place('hole_sign', 13, 18);
   place('umbrella', 24, 52);
   place('deck_chair', 25, 52);
   place('deck_chair', 22, 52);
@@ -173,9 +184,9 @@ export function createDefaultIsland(): IslandData {
       else if (roll < 0.16) place('tall_grass', x, y);
       continue;
     }
-    if (roll < 0.05) place(r() < 0.6 ? 'tree_oak' : 'tree_pine', x, y);
+    if (roll < 0.05) { const t = r(); place(t < 0.3 ? 'tree_apple' : t < 0.5 ? 'tree_oak' : 'tree_pine', x, y); }
     else if (roll < 0.08) place(['flowers_red', 'flowers_yellow', 'flowers_blue', 'flowers_pink'][Math.floor(r() * 4)], x, y);
-    else if (roll < 0.095) place(r() < 0.5 ? 'bush' : 'bush_berry', x, y);
+    else if (roll < 0.095) place(['bush', 'bush', 'bush_berry', 'bush_flowers_white', 'bush_flowers_red', 'bush_flowers_orange'][Math.floor(r() * 6)], x, y);
     else if (roll < 0.1) place('rock', x, y);
     else if (roll < 0.11) place('tall_grass', x, y);
   }
@@ -191,7 +202,7 @@ export function createDefaultShop(): ShopData {
     objects: [
       { id: 'counter', x: 10, y: 3 },
       { id: 'shelf_balls', x: 1, y: 2 },
-      { id: 'club_rack', x: 4, y: 2 },
+      { id: 'club_rack', x: 3, y: 9 },
       { id: 'trophy_case', x: 13, y: 2 },
       { id: 'potted_plant', x: 0, y: 8 },
       { id: 'potted_plant', x: 15, y: 8 },
@@ -203,7 +214,9 @@ export function createDefaultShop(): ShopData {
       { id: 'putting_mat', x: 11, y: 7 },
       { id: 'window', x: 2, y: 0 },
       { id: 'window', x: 12, y: 0 },
-      { id: 'poster', x: 5, y: 0 },
+      { id: 'sign_locker', x: 4, y: 0 },
+      { id: 'locker_door', x: 6, y: 0 },
+      { id: 'poster', x: 0, y: 0 },
       { id: 'clock', x: 8, y: 0 },
       { id: 'neon_open', x: 9, y: 0 },
       { id: 'pennant', x: 15, y: 0 },

@@ -50,17 +50,16 @@ export class CustomizeScene extends BaseScene {
   create() {
     this.setupLayers(1);
     this.kb = null;
-    this.cameras.main.setBackgroundColor('#3d6e8f');
-    this.w(this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'floor_checker').setOrigin(0).setTileScale(4).setAlpha(0.25));
+    this.cameras.main.setBackgroundColor('#0b0d10');
     this.look = { ...Save.data.characters[this.slot] };
 
     this.u(text(this, 330, 52, this.slot === 0 ? 'Your Golfer' : `Golfer ${this.slot + 1}`, 44, COLORS.gold, { stroke: '#2a1a10', strokeThickness: 9, fontStyle: 'bold' }).setOrigin(0.5));
-    this.u(panel(this, 90, 100, 480, 520));
-    const stage = this.u(this.add.graphics());
-    stage.fillStyle(0x6fbf5a, 1).fillEllipse(330, 528, 300, 70);
-    stage.fillStyle(0x4f9a3a, 1).fillEllipse(330, 534, 270, 52);
-    this.preview = this.u(new CharacterSprite(this, 330, 530, this.look)).setScale(12);
-    this.ballImg = this.u(this.add.image(470, 520, 'ball').setScale(6));
+    // Locker-room backdrop (assets/ui/lockers.png) behind the preview.
+    this.u(this.add.image(90, 100, 'ui_lockers').setOrigin(0).setScale(4));
+    const frame = this.u(this.add.graphics());
+    frame.lineStyle(6, 0x0b0d10, 1).strokeRoundedRect(90, 100, 480, 520, 18);
+    this.preview = this.u(new CharacterSprite(this, 330, 540, this.look)).setScale(12);
+    this.ballImg = this.u(this.add.image(480, 540, 'ball').setScale(6));
 
     const opt = (label: string, get: () => string, list: readonly unknown[], key: keyof CharacterLook): MenuItem => ({
       label: () => `${label}: ${get()}`,
