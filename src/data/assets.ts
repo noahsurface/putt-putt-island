@@ -8,7 +8,9 @@ export interface ImageAsset {
   frame?: { w: number; h: number };
 }
 
-const img = (key: string, path: string, frame?: { w: number; h: number }): ImageAsset => ({ key, path, frame });
+// The ?v= fingerprint changes whenever any art file changes, so browsers always
+// fetch matching art after an update instead of reusing stale cached images.
+const img = (key: string, path: string, frame?: { w: number; h: number }): ImageAsset => ({ key, path: `${path}?v=${__ASSET_VERSION__}`, frame });
 
 const OBJECT_IMAGES = [
   'tree_oak', 'tree_apple', 'tree_pine', 'tree_palm', 'bush', 'bush_berry', 'bush_flowers_white', 'bush_flowers_red',

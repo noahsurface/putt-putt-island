@@ -134,6 +134,11 @@ export class WorldRenderer {
         const src = this.scene.textures.get(L.texture).getSourceImage() as HTMLImageElement;
         const cols = Math.floor(src.width / TP);
         const rows = Math.floor(src.height / TP);
+        if (cols < 16 || rows < 1) {
+          // Wrong-sized sheet (e.g. old cached art): skip it rather than draw garbage.
+          console.warn(`Terrain sheet ${L.texture} is ${src.width}×${src.height}; expected 1024×192`);
+          continue;
+        }
         for (let y = ay0; y <= ay1; y++) for (let x = ax0; x <= ax1; x++) {
           if (!L.member(m.terrain(x, y))) continue;
           let mask = 0;
