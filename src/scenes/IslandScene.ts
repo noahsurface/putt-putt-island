@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLORS, GAME_WIDTH, TILE, ZOOM } from '../config';
+import { COLORS, GAME_HEIGHT, GAME_WIDTH, TILE, ZOOM } from '../config';
 import { ICON } from '../data/assets';
 import { ISLAND_CATEGORIES, OBJECTS, type DesignerTool } from '../data/catalog';
 import { WALLS, Wall } from '../data/terrain';
@@ -11,16 +11,19 @@ import { EditorHud } from '../ui/editorHud';
 import { showControls } from '../ui/help';
 import { IconGrid } from '../ui/iconGrid';
 import { PromptBar, text, toast, type PromptItem } from '../ui/widgets';
-import { CharacterSprite } from '../world/CharacterSprite';
+import { CharacterSprite, FACING_VECTORS } from '../world/CharacterSprite';
 import { IslandMap } from '../world/IslandMap';
-import { WorldRenderer } from '../world/WorldRenderer';
+import { FLAG_ORIGIN, WorldRenderer, WS } from '../world/WorldRenderer';
 import { BaseScene } from './BaseScene';
 
 type Mode = 'explore' | 'pad' | 'design' | 'modal';
 
 const DIR_NAMES = ['North', 'East', 'South', 'West'];
-const WALK = 72;
-const RUN = 124;
+// Matches the reference recording: a steady ~3 tiles per second walk.
+const WALK = 48;
+const RUN = 80;
+/** Camera only moves when the golfer nears the edge of this central box (world units). */
+const DEADZONE = { w: 220, h: 110 };
 
 export class IslandScene extends BaseScene {
   private map!: IslandMap;
@@ -73,7 +76,7 @@ export class IslandScene extends BaseScene {
 
     const cam = this.cameras.main;
     cam.setBounds(-TILE * 4, -TILE * 4, (this.map.w + 8) * TILE, (this.map.h + 8) * TILE);
-    cam.startFollow(this.player, true, 0.12, 0.12);
+    this.followPlayer();
 
     this.cursorSprite = this.w(this.add.sprite(0, 0, 'ui_cursor', 0).setOrigin(0).setDepth(1e6).setVisible(false));
     this.footprint = this.w(this.add.graphics().setDepth(1e6 - 1));
@@ -157,7 +160,7 @@ export class IslandScene extends BaseScene {
       if (!this.map.blocksWalk(this.feetRect(p.x, p.y + dy))) p.y += dy;
       else this.nudge(0, dy);
       p.faceVector(mv.x, mv.y);
-      p.walkRate = speed === RUN ? 12 : 8;
+      p.walkRate = speed === RUN ? 1.5 : 1;
       p.setDepth(p.y);
       this.stepTimer -= dt;
       if (this.stepTimer <= 0) {
@@ -215,8 +218,15 @@ export class IslandScene extends BaseScene {
     }
   }
 
+  /** Follow the golfer with a roomy dead zone, so the view stays still while you wander nearby. */
+  private followPlayer() {
+    const cam = this.cameras.main;
+    cam.startFollow(this.player, false, 0.12, 0.12);
+    cam.setDeadzone(DEADZONE.w, DEADZONE.h);
+  }
+
   private facingCell() {
-    const v = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] }[this.player.facing];
+    const v = FACING_VECTORS[this.player.facing];
     return { x: Math.floor((this.player.x + v[0] * 12) / TILE), y: Math.floor((this.player.y - 3 + v[1] * 12) / TILE) };
   }
 
@@ -276,11 +286,11 @@ export class IslandScene extends BaseScene {
     const f = this.facingCell();
     this.cursor = { x: Phaser.Math.Clamp(f.x, 0, this.map.w - 1), y: Phaser.Math.Clamp(f.y, 0, this.map.h - 1) };
     this.cursorSprite.setVisible(true);
-    this.cameras.main.startFollow(this.cursorSprite, true, 0.2, 0.2, -8, -8);
+    this.cameras.main.setDeadzone().startFollow(this.cursorSprite, false, 0.2, 0.2, -8, -8);
     this.hud.setVisible(true);
     this.place.setVisible(false);
     this.hint.setText('');
-    this.prompts.container.setY(this.scale.height - 204);
+    this.prompts.container.setY(GAME_HEIGHT - 204);
     this.refreshGhost(true);
     this.refreshDesignHud();
   }
@@ -295,8 +305,8 @@ export class IslandScene extends BaseScene {
     this.hud.setVisible(false);
     this.place.setVisible(true);
     this.cameras.main.setZoom(ZOOM);
-    this.cameras.main.startFollow(this.player, true, 0.12, 0.12);
-    this.prompts.container.setY(this.scale.height - 44);
+    this.followPlayer();
+    this.prompts.container.setY(GAME_HEIGHT - 44);
     this.setExplorePrompts();
     Save.save();
     toast(this, this.ui, 'Island saved!');
@@ -358,7 +368,7 @@ export class IslandScene extends BaseScene {
     }
     if (Input.pressed('Y')) {
       const cam = this.cameras.main;
-      cam.setZoom(cam.zoom === ZOOM ? 2 : ZOOM);
+      cam.setZoom(cam.zoom === ZOOM ? ZOOM * 0.66 : ZOOM);
     }
 
     const key = `${c.x},${c.y}`;
@@ -455,14 +465,14 @@ export class IslandScene extends BaseScene {
         err = m.canMarkHole(x, y);
         break;
       case 'cup':
-        key = 'flag'; frame = Math.min(17, this.holeNum); px += 8; py += 9; ox = 6 / 24; oy = 28 / 32;
+        key = 'flag'; frame = Math.min(17, this.holeNum); px += 8; py += 9; ox = FLAG_ORIGIN.x; oy = FLAG_ORIGIN.y;
         err = m.canMarkHole(x, y);
         break;
     }
     const gk = `${key}:${frame}`;
     if (force || gk !== this.ghostKey || !this.ghost) {
       this.ghost?.destroy();
-      this.ghost = this.w(this.add.image(0, 0, key, frame).setAlpha(0.7).setDepth(1e6 - 2));
+      this.ghost = this.w(this.add.image(0, 0, key, frame).setAlpha(0.7).setDepth(1e6 - 2).setScale(WS));
       this.ghostKey = gk;
     }
     this.ghost.setOrigin(ox, oy).setPosition(px, py);

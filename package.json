@@ -10,15 +10,14 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "art": "node scripts/generate-art.mjs",
-    "art:force": "node scripts/generate-art.mjs --force"
+    "art": "node scripts/art-hd/render.mjs",
+    "art:force": "node scripts/art-hd/render.mjs --force"
   },
   "dependencies": {
     "@fontsource/pixelify-sans": "5.3.0",
     "phaser": "3.90.0"
   },
   "devDependencies": {
-    "pngjs": "7.0.0",
     "typescript": "5.9.3",
     "vite": "7.3.7",
     "vitest": "3.2.7"

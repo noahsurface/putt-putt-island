@@ -53,6 +53,7 @@ export enum Wall {
   RailStone = 3,
   FenceWhite = 4,
   Hedge = 5,
+  FenceWood = 6,
 }
 
 export interface WallInfo {
@@ -66,10 +67,11 @@ export interface WallInfo {
 }
 
 export const WALLS: Record<Exclude<Wall, Wall.None>, WallInfo> = {
-  [Wall.RailWood]: { id: Wall.RailWood, name: 'Wood Rail', texture: 'wall_rail_wood', thickness: 4, restitution: 0.78 },
-  [Wall.RailBrick]: { id: Wall.RailBrick, name: 'Brick Rail', texture: 'wall_rail_brick', thickness: 6, restitution: 0.7 },
-  [Wall.RailStone]: { id: Wall.RailStone, name: 'Stone Rail', texture: 'wall_rail_stone', thickness: 6, restitution: 0.68 },
+  [Wall.RailWood]: { id: Wall.RailWood, name: 'Cobble Border', texture: 'wall_rail_wood', thickness: 16, restitution: 0.75 },
+  [Wall.RailBrick]: { id: Wall.RailBrick, name: 'Brick Border', texture: 'wall_rail_brick', thickness: 16, restitution: 0.7 },
+  [Wall.RailStone]: { id: Wall.RailStone, name: 'Stone Border', texture: 'wall_rail_stone', thickness: 16, restitution: 0.68 },
   [Wall.FenceWhite]: { id: Wall.FenceWhite, name: 'White Fence', texture: 'wall_fence_white', thickness: 2, restitution: 0.6 },
+  [Wall.FenceWood]: { id: Wall.FenceWood, name: 'Wood Fence', texture: 'wall_fence_wood', thickness: 2, restitution: 0.6 },
   [Wall.Hedge]: { id: Wall.Hedge, name: 'Hedge', texture: 'wall_hedge', thickness: 12, restitution: 0.35 },
 };
 

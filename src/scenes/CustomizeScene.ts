@@ -7,7 +7,7 @@ import { Input } from '../systems/Input';
 import { Save } from '../systems/Save';
 import { Sfx } from '../systems/Sfx';
 import { Menu, panel, PromptBar, text, type MenuItem } from '../ui/widgets';
-import { CharacterSprite, type Facing } from '../world/CharacterSprite';
+import { CharacterSprite, FACINGS_CLOCKWISE, type Facing } from '../world/CharacterSprite';
 import { BaseScene } from './BaseScene';
 
 const NICE: Record<string, string> = {
@@ -48,19 +48,18 @@ export class CustomizeScene extends BaseScene {
   }
 
   create() {
-    this.setupLayers(1);
+    this.setupLayers('ui');
     this.kb = null;
-    this.cameras.main.setBackgroundColor('#3d6e8f');
-    this.w(this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'floor_checker').setOrigin(0).setTileScale(4).setAlpha(0.25));
+    this.cameras.main.setBackgroundColor('#0b0d10');
     this.look = { ...Save.data.characters[this.slot] };
 
     this.u(text(this, 330, 52, this.slot === 0 ? 'Your Golfer' : `Golfer ${this.slot + 1}`, 44, COLORS.gold, { stroke: '#2a1a10', strokeThickness: 9, fontStyle: 'bold' }).setOrigin(0.5));
-    this.u(panel(this, 90, 100, 480, 520));
-    const stage = this.u(this.add.graphics());
-    stage.fillStyle(0x6fbf5a, 1).fillEllipse(330, 528, 300, 70);
-    stage.fillStyle(0x4f9a3a, 1).fillEllipse(330, 534, 270, 52);
-    this.preview = this.u(new CharacterSprite(this, 330, 530, this.look)).setScale(12);
-    this.ballImg = this.u(this.add.image(470, 520, 'ball').setScale(6));
+    // Locker-room backdrop (assets/ui/lockers.png) behind the preview.
+    this.u(this.add.image(90, 100, 'ui_lockers').setOrigin(0));
+    const frame = this.u(this.add.graphics());
+    frame.lineStyle(6, 0x0b0d10, 1).strokeRoundedRect(90, 100, 480, 520, 18);
+    this.preview = this.u(new CharacterSprite(this, 330, 560, this.look)).setScale(17);
+    this.ballImg = this.u(this.add.image(486, 556, 'ball').setScale(1.5));
 
     const opt = (label: string, get: () => string, list: readonly unknown[], key: keyof CharacterLook): MenuItem => ({
       label: () => `${label}: ${get()}`,
@@ -213,9 +212,10 @@ export class CustomizeScene extends BaseScene {
       this.updateKeyboard();
       return;
     }
-    const order: Facing[] = ['down', 'right', 'up', 'left'];
-    if (Input.pressed('RB')) { this.facing = order[(order.indexOf(this.facing) + 1) % 4]; this.apply(); }
-    if (Input.pressed('LB')) { this.facing = order[(order.indexOf(this.facing) + 3) % 4]; this.apply(); }
+    // Turn through all 8 directions.
+    const order = FACINGS_CLOCKWISE;
+    if (Input.repeat('RB')) { this.facing = order[(order.indexOf(this.facing) + 1) % 8]; this.apply(); }
+    if (Input.repeat('LB')) { this.facing = order[(order.indexOf(this.facing) + 7) % 8]; this.apply(); }
     if (Input.pressed('Y')) { this.walking = !this.walking; this.apply(); }
     this.menu.update();
   }

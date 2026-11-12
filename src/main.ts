@@ -1,7 +1,7 @@
 import '@fontsource/pixelify-sans/400.css';
 import '@fontsource/pixelify-sans/700.css';
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH } from './config';
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from './config';
 import { BootScene } from './scenes/BootScene';
 import { CustomizeScene } from './scenes/CustomizeScene';
 import { GolfScene } from './scenes/GolfScene';
@@ -22,11 +22,14 @@ async function start() {
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
-    width: GAME_WIDTH,
-    height: GAME_HEIGHT,
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
     backgroundColor: '#1d2b3a',
-    pixelArt: true,
-    roundPixels: true,
+    // Smooth, high-resolution art: linear filtering with mipmaps for zoomed-out views.
+    pixelArt: false,
+    antialias: true,
+    roundPixels: false,
+    render: { mipmapFilter: 'LINEAR_MIPMAP_LINEAR' },
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     input: { gamepad: false },
     scene: [BootScene, TitleScene, IslandScene, ProShopScene, CustomizeScene, JoinScene, GolfScene],

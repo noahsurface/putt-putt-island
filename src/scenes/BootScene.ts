@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLORS, FONT, GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, COLORS, FONT } from '../config';
 import { ASSET_IMAGES } from '../data/assets';
 
 export class BootScene extends Phaser.Scene {
@@ -9,11 +9,11 @@ export class BootScene extends Phaser.Scene {
 
   preload() {
     const bar = this.add.graphics();
-    const label = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, 'Putt-Putt Island', { fontFamily: FONT, fontSize: '48px', color: COLORS.gold, stroke: '#2a1a10', strokeThickness: 8 }).setOrigin(0.5);
+    const label = this.add.text(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2 - 70, 'Putt-Putt Island', { fontFamily: FONT, fontSize: '72px', color: COLORS.gold, stroke: '#2a1a10', strokeThickness: 8 }).setOrigin(0.5);
     this.load.on('progress', (v: number) => {
       bar.clear();
-      bar.fillStyle(0x000000, 0.4).fillRoundedRect(GAME_WIDTH / 2 - 204, GAME_HEIGHT / 2 + 6, 408, 28, 8);
-      bar.fillStyle(0x6fbf5a, 1).fillRoundedRect(GAME_WIDTH / 2 - 200, GAME_HEIGHT / 2 + 10, 400 * v, 20, 6);
+      bar.fillStyle(0x000000, 0.4).fillRoundedRect(CANVAS_WIDTH / 2 - 306, CANVAS_HEIGHT / 2 + 9, 612, 42, 12);
+      bar.fillStyle(0x6fbf5a, 1).fillRoundedRect(CANVAS_WIDTH / 2 - 300, CANVAS_HEIGHT / 2 + 15, 600 * v, 30, 9);
     });
     this.load.on('loaderror', (f: Phaser.Loader.File) => console.warn('Missing asset', f.key, f.url));
     for (const a of ASSET_IMAGES) {
@@ -24,6 +24,10 @@ export class BootScene extends Phaser.Scene {
   }
 
   create() {
+    // The UI frame/cursor/icon art is deliberately chunky pixel art: keep it crisp.
+    for (const key of ['ui_panel', 'ui_panel_dark', 'ui_cursor', 'ui_icons']) {
+      if (this.textures.exists(key)) this.textures.get(key).setFilter(Phaser.Textures.FilterMode.NEAREST);
+    }
     this.scene.start('Title');
   }
 }

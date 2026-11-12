@@ -1,6 +1,6 @@
 // Reusable UI pieces. All of these live on a scene's UI layer (zoom 1, screen space).
 import Phaser from 'phaser';
-import { COLORS, FONT, GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { COLORS, FONT, GAME_HEIGHT, GAME_WIDTH, UI_SCALE } from '../config';
 import { Input, KEY_LABELS, type Btn, type DeviceId } from '../systems/Input';
 import { Sfx } from '../systems/Sfx';
 
@@ -10,7 +10,8 @@ export function text(
   scene: Phaser.Scene, x: number, y: number, str: string, size = 22, color = COLORS.ink,
   opts: Partial<Phaser.Types.GameObjects.Text.TextStyle> = {},
 ) {
-  return scene.add.text(x, y, str, { fontFamily: FONT, fontSize: `${size}px`, color, ...opts });
+  // Render text at the UI scale so it stays crisp on the 1920×1080 canvas.
+  return scene.add.text(x, y, str, { fontFamily: FONT, fontSize: `${size}px`, color, resolution: UI_SCALE * 1.25, ...opts });
 }
 
 /** Wooden 9-slice panel (drawn at 2x so the pixel border stays chunky). */

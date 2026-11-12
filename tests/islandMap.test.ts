@@ -48,7 +48,9 @@ describe('default island', () => {
         const target = path[Math.min(path.length - 1, idx + 3)];
         const tx = target.x * T + 8, ty = target.y * T + 8;
         const d = Math.hypot(cup.x - ball.x, cup.y - ball.y);
-        const aim = d < 40 ? Math.atan2(cup.y - ball.y, cup.x - ball.x) : Math.atan2(ty - ball.y, tx - ball.x);
+        // After a few misses, vary the line like a person would (deterministic).
+        const jitter = strokes > 4 ? ((strokes * 7) % 5 - 2) * 0.12 : 0;
+        const aim = (d < 40 ? Math.atan2(cup.y - ball.y, cup.x - ball.x) : Math.atan2(ty - ball.y, tx - ball.x)) + jitter;
         const safe = { x: ball.x, y: ball.y };
         const inSand = map.terrainAtPx(ball.x, ball.y) === Terrain.Bunker;
         ball.hit(aim, inSand ? 0.7 : d < 40 ? 0.12 + d / 400 : 0.28);

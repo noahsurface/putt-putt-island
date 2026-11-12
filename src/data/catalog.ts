@@ -40,10 +40,16 @@ export interface ObjectDef {
 const defs: ObjectDef[] = [
   // ---- nature
   { id: 'tree_oak', name: 'Oak Tree', texture: 'tree_oak', w: 1, h: 1, placement: 'island', solid: true, rects: [{ x: 3, y: 4, w: 10, h: 12 }] },
+  { id: 'tree_apple', name: 'Apple Tree', texture: 'tree_apple', w: 1, h: 1, placement: 'island', solid: true, rects: [{ x: 3, y: 4, w: 10, h: 12 }] },
   { id: 'tree_pine', name: 'Pine Tree', texture: 'tree_pine', w: 1, h: 1, placement: 'island', solid: true, rects: [{ x: 3, y: 4, w: 10, h: 12 }] },
   { id: 'tree_palm', name: 'Palm Tree', texture: 'tree_palm', w: 1, h: 1, placement: 'island', solid: true, rects: [{ x: 4, y: 6, w: 8, h: 10 }] },
   { id: 'bush', name: 'Bush', texture: 'bush', w: 1, h: 1, placement: 'island', solid: true, rects: [{ x: 1, y: 3, w: 14, h: 12 }] },
   { id: 'bush_berry', name: 'Berry Bush', texture: 'bush_berry', w: 1, h: 1, placement: 'island', solid: true, rects: [{ x: 1, y: 3, w: 14, h: 12 }] },
+  { id: 'bush_flowers_white', name: 'White Flower Bush', texture: 'bush_flowers_white', w: 1, h: 1, placement: 'island', solid: true, rects: [{ x: 1, y: 3, w: 14, h: 12 }] },
+  { id: 'bush_flowers_red', name: 'Red Flower Bush', texture: 'bush_flowers_red', w: 1, h: 1, placement: 'island', solid: true, rects: [{ x: 1, y: 3, w: 14, h: 12 }] },
+  { id: 'bush_flowers_orange', name: 'Orange Flower Bush', texture: 'bush_flowers_orange', w: 1, h: 1, placement: 'island', solid: true, rects: [{ x: 1, y: 3, w: 14, h: 12 }] },
+  { id: 'flower_bed', name: 'Flower Bed', texture: 'flower_bed', w: 2, h: 2, placement: 'island', solid: false, ground: true },
+  { id: 'garden_plot', name: 'Garden Plot', texture: 'garden_plot', w: 2, h: 2, placement: 'island', solid: false, ground: true },
   { id: 'flowers_red', name: 'Red Flowers', texture: 'flowers_red', w: 1, h: 1, placement: 'island', solid: false },
   { id: 'flowers_yellow', name: 'Yellow Flowers', texture: 'flowers_yellow', w: 1, h: 1, placement: 'island', solid: false },
   { id: 'flowers_blue', name: 'Blue Flowers', texture: 'flowers_blue', w: 1, h: 1, placement: 'island', solid: false },
@@ -55,6 +61,7 @@ const defs: ObjectDef[] = [
   // ---- decor
   { id: 'bench', name: 'Bench', texture: 'bench', w: 2, h: 1, placement: 'island', solid: true, rects: [{ x: 1, y: 2, w: 30, h: 12 }] },
   { id: 'lamp', name: 'Lamp Post', texture: 'lamp', w: 1, h: 1, placement: 'island', solid: true, rects: [{ x: 5, y: 9, w: 6, h: 6 }] },
+  { id: 'hole_sign', name: 'Hole Sign', texture: 'hole_sign', w: 1, h: 1, placement: 'island', solid: true, rects: [{ x: 5, y: 9, w: 6, h: 6 }] },
   { id: 'sign', name: 'Signpost', texture: 'sign', w: 1, h: 1, placement: 'island', solid: true, rects: [{ x: 5, y: 9, w: 6, h: 6 }] },
   { id: 'barrel', name: 'Barrel', texture: 'barrel', w: 1, h: 1, placement: 'island', solid: true, rects: [{ x: 2, y: 2, w: 12, h: 13 }] },
   { id: 'crate', name: 'Crate', texture: 'crate', w: 1, h: 1, placement: 'island', solid: true, rects: [{ x: 2, y: 2, w: 12, h: 12 }] },
@@ -88,12 +95,14 @@ const defs: ObjectDef[] = [
   { id: 'armchair', name: 'Armchair', texture: 'armchair', w: 1, h: 1, placement: 'shop', solid: true },
   { id: 'coffee_table', name: 'Coffee Table', texture: 'coffee_table', w: 2, h: 1, placement: 'shop', solid: true },
   { id: 'mirror', name: 'Dressing Mirror', texture: 'mirror', w: 1, h: 1, placement: 'shop', solid: true, interact: 'mirror' },
-  { id: 'putting_mat', name: 'Putting Mat', texture: 'putting_mat', w: 3, h: 1, placement: 'shop', solid: false, ground: true },
+  { id: 'putting_mat', name: 'Indoor Green', texture: 'putting_mat', w: 4, h: 3, placement: 'shop', solid: false, ground: true },
   { id: 'poster', name: 'Course Poster', texture: 'poster', w: 1, h: 1, placement: 'shop-wall', solid: false, offsetY: 10 },
   { id: 'clock', name: 'Wall Clock', texture: 'clock', w: 1, h: 1, placement: 'shop-wall', solid: false, offsetY: 9 },
   { id: 'window', name: 'Window', texture: 'window', w: 2, h: 1, placement: 'shop-wall', solid: false, offsetY: 10 },
   { id: 'pennant', name: 'Pennant', texture: 'pennant', w: 1, h: 1, placement: 'shop-wall', solid: false, offsetY: 10 },
   { id: 'neon_open', name: 'Neon Sign', texture: 'neon_open', w: 2, h: 1, placement: 'shop-wall', solid: false, offsetY: 10 },
+  { id: 'locker_door', name: 'Locker Room Door', texture: 'locker_door', w: 1, h: 1, placement: 'shop-wall', solid: false, offsetY: 16 },
+  { id: 'sign_locker', name: 'Locker Room Sign', texture: 'sign_locker', w: 2, h: 1, placement: 'shop-wall', solid: false, offsetY: 8 },
 ];
 
 export const OBJECTS: Record<string, ObjectDef> = Object.fromEntries(defs.map((d) => [d.id, d]));
@@ -159,20 +168,21 @@ export const ISLAND_CATEGORIES: DesignerCategory[] = [
   {
     name: 'Borders',
     tools: [
-      { kind: 'wall', wall: Wall.RailWood, name: 'Wood Rail', icon: 'wall_rail_wood', frame: 10 },
-      { kind: 'wall', wall: Wall.RailBrick, name: 'Brick Rail', icon: 'wall_rail_brick', frame: 10 },
-      { kind: 'wall', wall: Wall.RailStone, name: 'Stone Rail', icon: 'wall_rail_stone', frame: 10 },
+      { kind: 'wall', wall: Wall.RailWood, name: 'Cobble Border', icon: 'wall_rail_wood', frame: 10 },
+      { kind: 'wall', wall: Wall.RailBrick, name: 'Brick Border', icon: 'wall_rail_brick', frame: 10 },
+      { kind: 'wall', wall: Wall.RailStone, name: 'Stone Border', icon: 'wall_rail_stone', frame: 10 },
       { kind: 'wall', wall: Wall.FenceWhite, name: 'White Fence', icon: 'wall_fence_white', frame: 10 },
+      { kind: 'wall', wall: Wall.FenceWood, name: 'Wood Fence', icon: 'wall_fence_wood', frame: 10 },
       { kind: 'wall', wall: Wall.Hedge, name: 'Hedge', icon: 'wall_hedge', frame: 10 },
     ],
   },
   {
     name: 'Nature',
-    tools: ['tree_oak', 'tree_pine', 'tree_palm', 'bush', 'bush_berry', 'flowers_red', 'flowers_yellow', 'flowers_blue', 'flowers_pink', 'tall_grass', 'rock', 'boulder', 'stump'].map(obj),
+    tools: ['tree_oak', 'tree_apple', 'tree_pine', 'tree_palm', 'bush', 'bush_berry', 'bush_flowers_white', 'bush_flowers_red', 'bush_flowers_orange', 'flower_bed', 'garden_plot', 'flowers_red', 'flowers_yellow', 'flowers_blue', 'flowers_pink', 'tall_grass', 'rock', 'boulder', 'stump'].map(obj),
   },
   {
     name: 'Decor',
-    tools: ['bench', 'lamp', 'sign', 'barrel', 'crate', 'umbrella', 'deck_chair', 'shell', 'starfish', 'tiki_torch', 'ball_statue', 'mailbox', 'picnic_table'].map(obj),
+    tools: ['hole_sign', 'bench', 'lamp', 'sign', 'barrel', 'crate', 'umbrella', 'deck_chair', 'shell', 'starfish', 'tiki_torch', 'ball_statue', 'mailbox', 'picnic_table'].map(obj),
   },
 ];
 
@@ -180,4 +190,4 @@ export const SHOP_FLOORS = ['wood', 'checker', 'carpet', 'tile'];
 export const SHOP_WALLS = ['cream', 'stripe', 'panel', 'navy'];
 
 export const SHOP_FURNITURE = ['counter', 'shelf_balls', 'club_rack', 'bag_stand', 'trophy_case', 'potted_plant', 'rug', 'armchair', 'coffee_table', 'mirror', 'putting_mat'];
-export const SHOP_WALL_ITEMS = ['poster', 'clock', 'window', 'pennant', 'neon_open'];
+export const SHOP_WALL_ITEMS = ['locker_door', 'sign_locker', 'poster', 'clock', 'window', 'pennant', 'neon_open'];

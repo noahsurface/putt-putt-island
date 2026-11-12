@@ -1,4 +1,4 @@
-import { COLORS, GAME_HEIGHT, GAME_WIDTH, TILE } from '../config';
+import { COLORS, GAME_HEIGHT, GAME_WIDTH, TILE, ZOOM } from '../config';
 import { Input, deviceLabel } from '../systems/Input';
 import { Save } from '../systems/Save';
 import { Session } from '../systems/Session';
@@ -19,7 +19,7 @@ export class TitleScene extends BaseScene {
   }
 
   create() {
-    this.setupLayers(2);
+    this.setupLayers(ZOOM * 0.62);
     const map = Session.map();
     this.worldView = new WorldRenderer(this, map, this.world);
     this.events.once('shutdown', () => this.worldView.destroy());

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, TILE } from '../config';
+import { GAME_HEIGHT, TILE, ZOOM } from '../config';
 import { ICON } from '../data/assets';
 import { OBJECTS, SHOP_FLOORS, SHOP_FURNITURE, SHOP_WALL_ITEMS, SHOP_WALLS, objectRects, type ObjectDef } from '../data/catalog';
 import type { PlacedObject } from '../data/types';
@@ -11,7 +11,8 @@ import { EditorHud, type HudCategory } from '../ui/editorHud';
 import { showControls } from '../ui/help';
 import { IconGrid } from '../ui/iconGrid';
 import { PromptBar, text, toast, type PromptItem } from '../ui/widgets';
-import { CharacterSprite } from '../world/CharacterSprite';
+import { CharacterSprite, FACING_VECTORS } from '../world/CharacterSprite';
+import { WS } from '../world/WorldRenderer';
 import { BaseScene } from './BaseScene';
 
 const ROOM_W = 16;
@@ -69,7 +70,7 @@ export class ProShopScene extends BaseScene {
     frame.fillStyle(0x3d2614, 1).fillRect(-6, -6, ROOM_W * TILE + 12, ROOM_H * TILE + 12);
     frame.fillStyle(0x5e3b20, 1).fillRect(-3, -3, ROOM_W * TILE + 6, ROOM_H * TILE + 6);
     frame.fillStyle(0x1b1410, 1).fillRect(DOOR.x * TILE, ROOM_H * TILE, DOOR.w * TILE, 8);
-    this.w(this.add.image(DOOR.x * TILE, (ROOM_H - 1) * TILE, 'door_mat').setOrigin(0).setDepth(-7000));
+    this.w(this.add.image(DOOR.x * TILE, (ROOM_H - 1) * TILE, 'door_mat').setOrigin(0).setScale(WS).setDepth(-7000));
     this.drawRoom();
     for (const o of this.shop.objects) this.addSprite(o);
 
@@ -90,16 +91,16 @@ export class ProShopScene extends BaseScene {
     this.floorImgs = [];
     this.wallImgs = [];
     for (let y = WALL_ROWS; y < ROOM_H; y++) for (let x = 0; x < ROOM_W; x++) {
-      this.floorImgs.push(this.w(this.add.image(x * TILE, y * TILE, `floor_${this.shop.floor}`).setOrigin(0).setDepth(-8000)));
+      this.floorImgs.push(this.w(this.add.image(x * TILE, y * TILE, `floor_${this.shop.floor}`).setOrigin(0).setScale(WS).setDepth(-8000)));
     }
-    for (let x = 0; x < ROOM_W; x++) this.wallImgs.push(this.w(this.add.image(x * TILE, 0, `wall_${this.shop.wall}`).setOrigin(0).setDepth(-8000)));
+    for (let x = 0; x < ROOM_W; x++) this.wallImgs.push(this.w(this.add.image(x * TILE, 0, `wall_${this.shop.wall}`).setOrigin(0).setScale(WS).setDepth(-8000)));
   }
 
   private addSprite(o: PlacedObject) {
     const def = OBJECTS[o.id];
     const bottom = (o.y + def.h) * TILE;
     const depth = def.placement === 'shop-wall' ? -7500 : def.ground ? -7000 + bottom : bottom - 3;
-    const img = this.w(this.add.image((o.x + def.w / 2) * TILE, bottom + (def.offsetY ?? 0), def.texture).setOrigin(0.5, 1).setDepth(depth));
+    const img = this.w(this.add.image((o.x + def.w / 2) * TILE, bottom + (def.offsetY ?? 0), def.texture).setOrigin(0.5, 1).setScale(WS).setDepth(depth));
     this.objSprites.set(o, img);
   }
 
@@ -176,7 +177,7 @@ export class ProShopScene extends BaseScene {
     const moving = Math.hypot(mv.x, mv.y) > 0.15;
     const p = this.player;
     if (moving) {
-      const sp = Input.held('B') ? 110 : 66;
+      const sp = Input.held('B') ? 76 : 46;
       const nx = p.x + mv.x * sp * dt, ny = p.y + mv.y * sp * dt;
       if (!this.blocked(nx, p.y)) p.x = nx;
       if (!this.blocked(p.x, ny)) p.y = ny;
@@ -189,7 +190,7 @@ export class ProShopScene extends BaseScene {
       return;
     }
     // interactions
-    const v = { down: [0, 1], up: [0, -1], left: [-1, 0], right: [1, 0] }[p.facing];
+    const v = FACING_VECTORS[p.facing];
     const fx = Math.floor((p.x + v[0] * 12) / TILE), fy = Math.floor((p.y - 3 + v[1] * 12) / TILE);
     const o = this.objectAt(fx, fy, false);
     const mirror = o && OBJECTS[o.id].interact === 'mirror';
@@ -244,7 +245,7 @@ export class ProShopScene extends BaseScene {
     this.hud.setVisible(true);
     this.title.setVisible(false);
     // Zoom out a touch so the room sits above the decorator HUD.
-    this.cameras.main.setZoom(2.25).centerOn((ROOM_W * TILE) / 2, (ROOM_H * TILE) / 2 + 31);
+    this.cameras.main.setZoom(ZOOM * 0.75).centerOn((ROOM_W * TILE) / 2, (ROOM_H * TILE) / 2 + 58);
     this.prompts.container.setY(GAME_HEIGHT - 204);
     this.refreshDecorate(true);
   }
@@ -257,7 +258,7 @@ export class ProShopScene extends BaseScene {
     this.footprint.clear();
     this.hud.setVisible(false);
     this.title.setVisible(true);
-    this.cameras.main.setZoom(3).centerOn((ROOM_W * TILE) / 2, (ROOM_H * TILE) / 2 + 6);
+    this.cameras.main.setZoom(ZOOM).centerOn((ROOM_W * TILE) / 2, (ROOM_H * TILE) / 2 + 6);
     this.prompts.container.setY(GAME_HEIGHT - 44);
     this.setWalkPrompts('');
     Save.save();
@@ -286,7 +287,7 @@ export class ProShopScene extends BaseScene {
       const def = OBJECTS[id];
       const gy = cat.kind === 'wall' ? 0 : y;
       const err = this.canPlace(def, x, gy);
-      this.ghost = this.w(this.add.image((x + def.w / 2) * TILE, (gy + def.h) * TILE + (def.offsetY ?? 0), def.texture).setOrigin(0.5, 1).setAlpha(0.7).setDepth(1e6 - 2));
+      this.ghost = this.w(this.add.image((x + def.w / 2) * TILE, (gy + def.h) * TILE + (def.offsetY ?? 0), def.texture).setOrigin(0.5, 1).setScale(WS).setAlpha(0.7).setDepth(1e6 - 2));
       if (err) this.ghost.setTint(0xff7070);
       this.footprint.lineStyle(1, err ? 0xff5050 : 0xffffff, 0.9).strokeRect(x * TILE + 0.5, gy * TILE + 0.5, def.w * TILE - 1, def.h * TILE - 1);
     }
